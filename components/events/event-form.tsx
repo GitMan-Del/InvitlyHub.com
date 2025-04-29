@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { v4 as uuidv4 } from "uuid"
 import { motion } from "framer-motion"
 import { Calendar, Clock, MapPin, Type, FileText, Plus } from "lucide-react"
-import { useSupabaseClient } from "@/lib/supabase/db-utils"
+import { useSupabaseClient } from "@/lib/supabase/client-utils"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function EventForm({ onSuccess }: { onSuccess?: () => void }) {

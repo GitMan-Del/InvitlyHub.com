@@ -42,7 +42,7 @@ export default function Navbar() {
     >
       <div className="max-w-6xl w-full px-6 flex flex-row items-center justify-between">
         <Link href="/">
-          <Image className="p-1 rounded-full" src="/Logo.png" alt="logo" width={40} height={40} />
+          <Image className="p-1" src="/Logo.png" alt="logo" width={40} height={40} />
         </Link>
 
         <ul className="hidden md:flex opacity-80 text-sm md:text-base flex-row items-center space-x-6 bg-transparent py-2 px-6 text-white border border-white/15 rounded-full">

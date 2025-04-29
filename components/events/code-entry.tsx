@@ -6,7 +6,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Ticket, ArrowRight } from "lucide-react"
-import { useSupabaseClient } from "@/lib/supabase/db-utils"
+import { useSupabaseClient } from "@/lib/supabase/client-utils"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function CodeEntry() {

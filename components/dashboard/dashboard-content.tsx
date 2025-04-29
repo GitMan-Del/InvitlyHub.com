@@ -3,11 +3,10 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Image from "next/image"
+import Link from "next/link"
 import { motion } from "framer-motion"
 import type { User } from "@supabase/supabase-js"
-import { createClient } from "@/lib/supabase/client"
 import {
   LayoutDashboard,
   Calendar,
@@ -28,8 +27,7 @@ import {
 } from "lucide-react"
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
 import "react-circular-progressbar/dist/styles.css"
-import type { Profile, Event, ActivityLog } from "@/lib/supabase/db-utils"
-import Link from "next/link"
+import type { Profile, Event, ActivityLog } from "@/lib/supabase/types"
 
 type DashboardContentProps = {
   user: User
@@ -52,6 +50,8 @@ type DashboardContentProps = {
     growth: number
   }
   recentActivity: ActivityLog[]
+  onSignOut: () => void
+  isSigningOut: boolean
 }
 
 export default function DashboardContent({
@@ -61,18 +61,10 @@ export default function DashboardContent({
   responseStats,
   analyticsData,
   recentActivity,
+  onSignOut,
+  isSigningOut,
 }: DashboardContentProps) {
-  const router = useRouter()
-  const supabase = createClient()
-  const [loading, setLoading] = useState(false)
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
-
-  const handleSignOut = async () => {
-    setLoading(true)
-    await supabase.auth.signOut()
-    router.push("/")
-    router.refresh()
-  }
 
   // Format user display name
   const displayName = profile?.full_name || user.email?.split("@")[0] || "User"
@@ -168,11 +160,12 @@ export default function DashboardContent({
 
         <div className="p-4 border-t border-white/10">
           <button
-            onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-white/70 hover:bg-white/5"
+            onClick={onSignOut}
+            disabled={isSigningOut}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-white/70 hover:bg-white/5 disabled:opacity-50"
           >
             <LogOut size={18} />
-            <span>Sign Out</span>
+            <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
           </button>
         </div>
       </div>
@@ -229,10 +222,11 @@ export default function DashboardContent({
                   </a>
                   <div className="border-t border-white/10 my-1"></div>
                   <button
-                    onClick={handleSignOut}
-                    className="block w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-white/5"
+                    onClick={onSignOut}
+                    disabled={isSigningOut}
+                    className="block w-full text-left px-4 py-2 text-sm text-white/80 hover:bg-white/5 disabled:opacity-50"
                   >
-                    Sign Out
+                    {isSigningOut ? "Signing out..." : "Sign Out"}
                   </button>
                 </div>
               )}

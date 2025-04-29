@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import EventsPage from "./events-page"
+import EventsClient from "./events-client"
 
-export default async function Events() {
+export default async function EventsPage() {
   const supabase = createClient()
 
   // Check if user is authenticated
@@ -25,5 +25,5 @@ export default async function Events() {
   // Get base URL for QR code
   const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"
 
-  return <EventsPage events={events || []} baseUrl={baseUrl} />
+  return <EventsClient events={events || []} baseUrl={baseUrl} />
 }

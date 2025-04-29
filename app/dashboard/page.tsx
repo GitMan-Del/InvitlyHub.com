@@ -1,9 +1,6 @@
-"use client"
-
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import DashboardContent from "@/components/dashboard/dashboard-content"
-import { getProfile, getUserEvents, getEventResponseStats, getRecentActivity } from "@/lib/supabase/server-utils"
+import DashboardClient from "./dashboard-client"
 
 export default async function DashboardPage() {
   const supabase = createClient()
@@ -18,56 +15,88 @@ export default async function DashboardPage() {
     redirect("/auth/signin")
   }
 
-  try {
-    // Fetch user profile data
-    const profile = await getProfile(session.user.id)
+  // Fetch user profile data
+  const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle()
 
-    // Get events data
-    const eventsData = await getUserEvents(session.user.id)
+  // Get events data
+  const now = new Date().toISOString()
 
-    // Get response statistics
-    const responseStats = await getEventResponseStats(session.user.id)
+  // Get upcoming events
+  const { data: upcomingEvents } = await supabase
+    .from("events")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .gte("event_date", now)
+    .order("event_date", { ascending: true })
 
-    // Get recent activity
-    const recentActivity = await getRecentActivity(session.user.id)
+  // Get past events
+  const { data: pastEvents } = await supabase
+    .from("events")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .lt("event_date", now)
+    .order("event_date", { ascending: false })
 
-    // Get analytics data (mock data for now, could be calculated from real data in the future)
-    const analyticsData = {
-      views: 1245,
-      responses: responseStats.total,
-      engagement: responseStats.total > 0 ? Math.round((responseStats.yes / responseStats.total) * 100) : 0,
-      growth: 23,
-    }
+  // Get all events for this user
+  const { data: events } = await supabase.from("events").select("id").eq("user_id", session.user.id)
 
-    return (
-      <DashboardContent
-        user={session.user}
-        profile={profile}
-        events={eventsData}
-        responseStats={responseStats}
-        analyticsData={analyticsData}
-        recentActivity={recentActivity}
-      />
-    )
-  } catch (error) {
-    console.error("Error loading dashboard:", error)
+  const eventIds = events?.map((event) => event.id) || []
 
-    // Return a simple error state
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-8 max-w-md">
-          <h2 className="text-2xl font-bold mb-4">Something went wrong</h2>
-          <p className="text-white/70 mb-6">
-            We encountered an error while loading your dashboard. Please try again later.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-[#9855FF] text-white font-medium py-2 px-4 rounded-lg"
-          >
-            Refresh Page
-          </button>
-        </div>
-      </div>
-    )
+  // Get invitation stats
+  const { data: invitations } = await supabase
+    .from("invitations")
+    .select("status")
+    .in("event_id", eventIds.length > 0 ? eventIds : ["no-events"])
+
+  const total = invitations?.length || 0
+  const yes = invitations?.filter((inv) => inv.status === "yes").length || 0
+  const no = invitations?.filter((inv) => inv.status === "no").length || 0
+  const pending = invitations?.filter((inv) => inv.status === "pending").length || 0
+
+  // Calculate percentages
+  const yesPercent = total > 0 ? Math.round((yes / total) * 100) : 0
+  const noPercent = total > 0 ? Math.round((no / total) * 100) : 0
+
+  // Get recent activity
+  const { data: recentActivity } = await supabase
+    .from("activity_logs")
+    .select(`
+      *,
+      events(title)
+    `)
+    .eq("user_id", session.user.id)
+    .order("created_at", { ascending: false })
+    .limit(4)
+
+  // Get analytics data (mock data for now)
+  const analyticsData = {
+    views: 1245,
+    responses: total,
+    engagement: total > 0 ? Math.round((yes / total) * 100) : 0,
+    growth: 23,
   }
+
+  const eventsData = {
+    upcoming: upcomingEvents || [],
+    past: pastEvents || [],
+    total: (upcomingEvents?.length || 0) + (pastEvents?.length || 0),
+  }
+
+  const responseStats = {
+    yes: yesPercent,
+    no: noPercent,
+    pending,
+    total,
+  }
+
+  return (
+    <DashboardClient
+      user={session.user}
+      profile={profile || null}
+      events={eventsData}
+      responseStats={responseStats}
+      analyticsData={analyticsData}
+      recentActivity={recentActivity || []}
+    />
+  )
 }

@@ -64,8 +64,8 @@
     "@supabase/auth-helpers-nextjs": "latest",
     "react-qr-code": "latest",
     "qrcode.react": "latest",
-    "react-circular-progressbar": "latest",
-    "uuid": "latest"
+    "uuid": "latest",
+    "react-circular-progressbar": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

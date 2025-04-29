@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import EventDetails from "./event-details"
+import EventDetailsClient from "./event-details-client"
 
 export default async function EventPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
@@ -45,7 +45,7 @@ export default async function EventPage({ params }: { params: { id: string } }) 
   const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"
 
   return (
-    <EventDetails
+    <EventDetailsClient
       event={event}
       attendees={attendees}
       responseStats={{ yes, no, pending, total: responses.length }}

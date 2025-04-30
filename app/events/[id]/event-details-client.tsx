@@ -9,6 +9,7 @@ interface EventDetailsClientProps {
   responseStats: {
     yes: number
     no: number
+    maybe: number
     pending: number
     total: number
   }

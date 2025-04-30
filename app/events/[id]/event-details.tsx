@@ -3,8 +3,9 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Calendar, Clock, MapPin, Users, ArrowLeft, Share, Download } from "lucide-react"
-import QRCodeDisplay from "@/components/events/qr-code"
+import { Calendar, Clock, MapPin, Users, ArrowLeft, Share, Download, Mail } from "lucide-react"
+import EnhancedQRCode from "@/components/events/enhanced-qr-code"
+import InvitationForm from "@/components/events/invitation-form"
 import { useToast } from "@/components/ui/use-toast"
 
 interface EventDetailsProps {
@@ -13,6 +14,7 @@ interface EventDetailsProps {
   responseStats: {
     yes: number
     no: number
+    maybe: number
     pending: number
     total: number
   }
@@ -23,6 +25,7 @@ interface EventDetailsProps {
 export default function EventDetails({ event, attendees, responseStats, isOwner, baseUrl }: EventDetailsProps) {
   const { toast } = useToast()
   const [showQR, setShowQR] = useState(false)
+  const [showInviteForm, setShowInviteForm] = useState(false)
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -45,9 +48,6 @@ export default function EventDetails({ event, attendees, responseStats, isOwner,
     }).format(date)
   }
 
-  // Generate QR code value (URL to event)
-  const qrCodeValue = `${baseUrl}/events/${event.id}`
-
   // Share event
   const shareEvent = async () => {
     try {
@@ -55,11 +55,11 @@ export default function EventDetails({ event, attendees, responseStats, isOwner,
         await navigator.share({
           title: event.title,
           text: `Join me at ${event.title}! Use code: ${event.unique_code}`,
-          url: qrCodeValue,
+          url: `${baseUrl}/events/${event.id}`,
         })
       } else {
         await navigator.clipboard.writeText(
-          `Join me at ${event.title}! Use code: ${event.unique_code} or visit ${qrCodeValue}`,
+          `Join me at ${event.title}! Use code: ${event.unique_code} or visit ${baseUrl}/events/${event.id}`,
         )
         toast({
           title: "Link Copied",
@@ -174,17 +174,21 @@ export default function EventDetails({ event, attendees, responseStats, isOwner,
               {isOwner && (
                 <div className="bg-white/5 rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-white mb-2">Response Stats</h3>
-                  <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="grid grid-cols-4 gap-4 text-center">
                     <div className="bg-black/30 border border-white/10 rounded-lg p-3">
                       <div className="text-green-500 font-bold text-xl">{responseStats.yes}</div>
                       <div className="text-white/70 text-sm">Yes</div>
+                    </div>
+                    <div className="bg-black/30 border border-white/10 rounded-lg p-3">
+                      <div className="text-yellow-500 font-bold text-xl">{responseStats.maybe}</div>
+                      <div className="text-white/70 text-sm">Maybe</div>
                     </div>
                     <div className="bg-black/30 border border-white/10 rounded-lg p-3">
                       <div className="text-red-500 font-bold text-xl">{responseStats.no}</div>
                       <div className="text-white/70 text-sm">No</div>
                     </div>
                     <div className="bg-black/30 border border-white/10 rounded-lg p-3">
-                      <div className="text-yellow-500 font-bold text-xl">{responseStats.pending}</div>
+                      <div className="text-blue-500 font-bold text-xl">{responseStats.pending}</div>
                       <div className="text-white/70 text-sm">Pending</div>
                     </div>
                   </div>
@@ -193,12 +197,36 @@ export default function EventDetails({ event, attendees, responseStats, isOwner,
             </div>
           </div>
 
-          {/* QR Code */}
-          <div className="md:col-span-1">
+          {/* QR Code and Invite Form */}
+          <div className="md:col-span-1 space-y-6">
+            {/* QR Code */}
             <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Event QR Code</h3>
-              <QRCodeDisplay value={qrCodeValue} eventTitle={event.title} />
+              <EnhancedQRCode eventId={event.id} eventTitle={event.title} baseUrl={baseUrl} />
             </div>
+
+            {/* Invite Button or Form */}
+            {isOwner &&
+              (showInviteForm ? (
+                <InvitationForm
+                  eventId={event.id}
+                  eventTitle={event.title}
+                  baseUrl={baseUrl}
+                  onClose={() => setShowInviteForm(false)}
+                />
+              ) : (
+                <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6 text-center">
+                  <h3 className="text-lg font-semibold text-white mb-4">Invite Guests</h3>
+                  <p className="text-white/70 mb-4">Send personalized invitations to your guests</p>
+                  <button
+                    onClick={() => setShowInviteForm(true)}
+                    className="bg-[#9855FF] hover:bg-[#8144E5] text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 w-full"
+                  >
+                    <Mail className="h-4 w-4" />
+                    <span>Send Invitations</span>
+                  </button>
+                </div>
+              ))}
           </div>
         </div>
       </main>

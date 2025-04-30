@@ -65,6 +65,7 @@
     "react-qr-code": "latest",
     "qrcode.react": "latest",
     "uuid": "latest",
+    "html5-qrcode": "latest",
     "react-circular-progressbar": "latest"
   },
   "devDependencies": {

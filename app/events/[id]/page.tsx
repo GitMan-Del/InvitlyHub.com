@@ -33,6 +33,7 @@ export default async function EventPage({ params }: { params: { id: string } }) 
 
   const yes = responses.filter((r) => r.status === "yes").length
   const no = responses.filter((r) => r.status === "no").length
+  const maybe = responses.filter((r) => r.status === "maybe").length
   const pending = responses.filter((r) => r.status === "pending").length
 
   // Check if user is authenticated
@@ -48,7 +49,7 @@ export default async function EventPage({ params }: { params: { id: string } }) 
     <EventDetailsClient
       event={event}
       attendees={attendees}
-      responseStats={{ yes, no, pending, total: responses.length }}
+      responseStats={{ yes, no, maybe, pending, total: responses.length }}
       isOwner={isOwner}
       baseUrl={baseUrl}
     />

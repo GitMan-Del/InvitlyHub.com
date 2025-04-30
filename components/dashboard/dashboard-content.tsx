@@ -24,6 +24,7 @@ import {
   Clock,
   BarChart3,
   CalendarDays,
+  QrCode,
 } from "lucide-react"
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
 import "react-circular-progressbar/dist/styles.css"
@@ -141,6 +142,15 @@ export default function DashboardContent({
                   <Mail size={18} />
                   <span>Messages</span>
                 </a>
+              </li>
+              <li>
+                <Link
+                  href="/scan"
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-white/70 hover:bg-white/5"
+                >
+                  <QrCode size={18} />
+                  <span>Scan QR</span>
+                </Link>
               </li>
             </ul>
           </div>

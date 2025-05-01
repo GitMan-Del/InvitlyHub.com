@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export interface Database {
   public: {
@@ -123,7 +129,7 @@ export interface Database {
           }
         ]
       }
-       activity_logs: {
+      activity_logs: {
         Row: {
           id: string
           user_id: string
@@ -175,7 +181,3 @@ export interface Database {
     }
   }
 }
-
-export type Tables<
-  T extends keyof Database["public"]["Tables"] = keyof Database["public"]["Tables"]
-> = Database["public"]["Tables"][T]["Row"];

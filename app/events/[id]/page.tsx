@@ -16,6 +16,7 @@ export default async function EventPage({ params }: { params: { id: string } }) 
     .single()
 
   if (error || !event) {
+    console.error("Event not found:", error)
     notFound()
   }
 

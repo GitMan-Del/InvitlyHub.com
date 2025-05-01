@@ -92,6 +92,7 @@ export interface Database {
           status: string
           created_at: string
           updated_at: string
+          short_code: string | null
         }
         Insert: {
           id?: string
@@ -101,6 +102,7 @@ export interface Database {
           status?: string
           created_at?: string
           updated_at?: string
+          short_code?: string | null
         }
         Update: {
           id?: string
@@ -110,6 +112,7 @@ export interface Database {
           status?: string
           created_at?: string
           updated_at?: string
+          short_code?: string | null
         }
         Relationships: [
           {

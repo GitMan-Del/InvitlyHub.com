@@ -3,10 +3,21 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Plus, ArrowLeft } from "lucide-react"
+import { Plus, ArrowLeft, Trash2 } from "lucide-react"
 import EventForm from "@/components/events/event-form"
 import EventCard from "@/components/events/event-card"
 import CodeEntry from "@/components/events/code-entry"
+import {
+  TableSelectionProvider,
+  useTableSelection,
+  SelectAllCheckbox,
+  SelectionActions,
+  SelectRowCheckbox,
+} from "@/components/ui/table-selection"
+import { Button } from "@/components/ui/button"
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
+import { deleteMultipleEvents } from "@/app/actions/event-actions"
+import { useToast } from "@/components/ui/use-toast"
 import type { Event } from "@/lib/supabase/db-utils"
 
 interface EventsPageProps {
@@ -16,6 +27,7 @@ interface EventsPageProps {
 
 export default function EventsPage({ events, baseUrl }: EventsPageProps) {
   const [showForm, setShowForm] = useState(false)
+  const { toast } = useToast()
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -60,11 +72,9 @@ export default function EventsPage({ events, baseUrl }: EventsPageProps) {
             )}
 
             {events.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6">
-                {events.map((event) => (
-                  <EventCard key={event.id} event={event} baseUrl={baseUrl} />
-                ))}
-              </div>
+              <TableSelectionProvider>
+                <EventsList events={events} baseUrl={baseUrl} />
+              </TableSelectionProvider>
             ) : (
               <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-8 text-center">
                 <h3 className="text-xl font-semibold text-white mb-2">No Events Yet</h3>
@@ -87,6 +97,94 @@ export default function EventsPage({ events, baseUrl }: EventsPageProps) {
           </div>
         </div>
       </main>
+    </div>
+  )
+}
+
+function EventsList({ events, baseUrl }: { events: Event[]; baseUrl: string }) {
+  const { selectedItems, deselectAll } = useTableSelection<Event>()
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const { toast } = useToast()
+
+  const handleDeleteSelected = async () => {
+    setIsDeleting(true)
+    try {
+      const result = await deleteMultipleEvents(selectedItems.map((e) => e.id))
+      if (result.success) {
+        toast({
+          title: "Events deleted",
+          description: result.message,
+        })
+        // Force a page refresh to update the UI
+        window.location.reload()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error,
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred",
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
+    }
+  }
+
+  return (
+    <div>
+      {selectedItems.length > 0 && (
+        <div className="bg-[#1A0B2E] border border-white/10 rounded-lg p-3 mb-4 flex items-center justify-between">
+          <div className="text-white">
+            <span className="font-medium">{selectedItems.length}</span> event{selectedItems.length !== 1 ? "s" : ""}{" "}
+            selected
+          </div>
+          <SelectionActions>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              className="flex items-center gap-1"
+            >
+              <Trash2 size={14} />
+              Delete Selected
+            </Button>
+          </SelectionActions>
+        </div>
+      )}
+
+      <div className="mb-4 flex items-center px-4 py-2 bg-white/5 rounded-lg">
+        <SelectAllCheckbox items={events} className="mr-3" />
+        <span className="text-white/70 text-sm font-medium">Select All Events</span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        {events.map((event) => (
+          <div key={event.id} className="flex items-center gap-3">
+            <SelectRowCheckbox item={event} />
+            <div className="flex-1">
+              <EventCard event={event} baseUrl={baseUrl} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Selected Events"
+        description={`Are you sure you want to delete ${selectedItems.length} selected event${selectedItems.length !== 1 ? "s" : ""}? This action cannot be undone and will remove all invitations and data associated with these events.`}
+        confirmText="Delete Events"
+        variant="destructive"
+        onConfirm={handleDeleteSelected}
+        isLoading={isDeleting}
+      />
     </div>
   )
 }

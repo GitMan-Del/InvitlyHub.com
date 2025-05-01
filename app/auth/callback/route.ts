@@ -5,6 +5,7 @@ import { cookies } from "next/headers"
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
+  const redirectTo = requestUrl.searchParams.get("redirect") || "/dashboard"
 
   if (code) {
     const supabase = createRouteHandlerClient({ cookies })
@@ -30,5 +31,6 @@ export async function GET(request: Request) {
   }
 
   // URL to redirect to after sign in process completes
-  return NextResponse.redirect(new URL("/dashboard", request.url))
+  // Use the redirect parameter if provided, otherwise go to dashboard
+  return NextResponse.redirect(new URL(decodeURIComponent(redirectTo), request.url))
 }

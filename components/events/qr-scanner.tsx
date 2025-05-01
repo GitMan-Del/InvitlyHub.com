@@ -68,25 +68,50 @@ export default function QRScanner({ onClose }: QRScannerProps) {
       // Check if the scanned URL is from our application
       const url = new URL(result)
 
-      // Extract event ID from URL if it matches our pattern
+      // Extract event ID or invitation code from URL based on the path pattern
       const pathSegments = url.pathname.split("/")
-      if (pathSegments.length >= 3 && pathSegments[1] === "events") {
-        const eventId = pathSegments[2]
 
-        toast({
-          title: "QR Code Scanned Successfully",
-          description: `Navigating to event: ${eventId}`,
-        })
-
-        // Navigate to the event page
-        router.push(`/events/${eventId}`)
+      // Handle different URL patterns
+      if (pathSegments.length >= 3) {
+        if (pathSegments[1] === "events") {
+          // Event URL: /events/[id]
+          const eventId = pathSegments[2]
+          toast({
+            title: "Event QR Code Scanned",
+            description: `Navigating to event details`,
+          })
+          router.push(`/events/${eventId}`)
+        } else if (pathSegments[1] === "invitations") {
+          // Invitation URL: /invitations/[id]
+          const invitationId = pathSegments[2]
+          toast({
+            title: "Invitation QR Code Scanned",
+            description: `Navigating to invitation response`,
+          })
+          router.push(`/invitations/${invitationId}${url.search}`)
+        } else if (pathSegments[1] === "invites") {
+          // New invitation URL: /invites/[code]
+          const inviteCode = pathSegments[2]
+          toast({
+            title: "Invitation QR Code Scanned",
+            description: `Navigating to invitation response`,
+          })
+          router.push(`/invites/${inviteCode}`)
+        } else {
+          // Handle external URLs or invalid formats
+          toast({
+            title: "Valid QR Code",
+            description: `Scanned URL: ${result}`,
+          })
+          // Optionally open the URL
+          window.open(result, "_blank")
+        }
       } else {
         // Handle external URLs or invalid formats
         toast({
           title: "Valid QR Code",
           description: `Scanned URL: ${result}`,
         })
-
         // Optionally open the URL
         window.open(result, "_blank")
       }
@@ -96,6 +121,11 @@ export default function QRScanner({ onClose }: QRScannerProps) {
         title: "QR Code Scanned",
         description: `Content: ${result}`,
       })
+
+      // Try to interpret as an event or invitation code
+      if (result.length >= 6 && result.length <= 36) {
+        router.push(`/invites/${result}`)
+      }
     }
 
     if (onClose) {

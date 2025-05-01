@@ -41,12 +41,16 @@ export default async function InvitationResponsePage({
   // Get base URL for QR code
   const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"
 
+  // Check if the logged-in user matches the invitation email
+  const isInvitedUser = session?.user?.email?.toLowerCase() === invitation.email.toLowerCase()
+
   return (
     <InvitationResponseClient
       invitation={invitation}
       event={invitation.events}
       isLoggedIn={!!session}
       userEmail={session?.user?.email || null}
+      isInvitedUser={isInvitedUser}
       baseUrl={baseUrl}
     />
   )

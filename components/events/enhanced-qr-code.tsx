@@ -12,6 +12,7 @@ interface EnhancedQRCodeProps {
   invitationId?: string
   baseUrl: string
   size?: number
+  useInviteRoute?: boolean
 }
 
 export default function EnhancedQRCode({
@@ -20,6 +21,7 @@ export default function EnhancedQRCode({
   invitationId,
   baseUrl,
   size = 200,
+  useInviteRoute = false,
 }: EnhancedQRCodeProps) {
   const { toast } = useToast()
   const qrRef = useRef<HTMLDivElement>(null)
@@ -28,9 +30,13 @@ export default function EnhancedQRCode({
   const [showFormatOptions, setShowFormatOptions] = useState(false)
 
   // Generate QR code value (URL to event invitation)
-  const qrCodeValue = invitationId
-    ? `${baseUrl}/invitations/${invitationId}?event=${eventId}`
-    : `${baseUrl}/events/${eventId}`
+  // If useInviteRoute is true, use the new /invites/[code] route
+  // Otherwise, use the existing /events/[id] or /invitations/[id] routes
+  const qrCodeValue = useInviteRoute
+    ? `${baseUrl}/invites/${invitationId || eventId}`
+    : invitationId
+      ? `${baseUrl}/invitations/${invitationId}?event=${eventId}`
+      : `${baseUrl}/events/${eventId}`
 
   const downloadQRCode = () => {
     const canvas = document.getElementById("qr-code-canvas") as HTMLCanvasElement

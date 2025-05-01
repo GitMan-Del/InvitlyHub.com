@@ -11,9 +11,10 @@ import { useToast } from "@/components/ui/use-toast"
 
 type AuthFormProps = {
   type: "signin" | "signup"
+  redirectUrl?: string | null
 }
 
-export default function AuthForm({ type }: AuthFormProps) {
+export default function AuthForm({ type, redirectUrl }: AuthFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
@@ -38,7 +39,7 @@ export default function AuthForm({ type }: AuthFormProps) {
             data: {
               full_name: fullName,
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/callback${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ""}`,
           },
         })
 
@@ -69,7 +70,12 @@ export default function AuthForm({ type }: AuthFormProps) {
 
         if (error) throw error
 
-        router.push("/dashboard")
+        // Redirect to the specified URL or dashboard
+        if (redirectUrl) {
+          router.push(redirectUrl)
+        } else {
+          router.push("/dashboard")
+        }
         router.refresh()
       }
     } catch (error: any) {
@@ -188,7 +194,11 @@ export default function AuthForm({ type }: AuthFormProps) {
           <p className="text-gray-400">
             {type === "signin" ? "Don't have an account? " : "Already have an account? "}
             <Link
-              href={type === "signin" ? "/auth/signup" : "/auth/signin"}
+              href={
+                type === "signin"
+                  ? `/auth/signup${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ""}`
+                  : `/auth/signin${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ""}`
+              }
               className="text-purple-400 hover:text-purple-300 font-medium"
             >
               {type === "signin" ? "Sign Up" : "Sign In"}

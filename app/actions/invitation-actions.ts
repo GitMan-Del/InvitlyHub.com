@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { generateShortCode } from "@/lib/utils/invitation-utils"
 
 export async function respondToInvitation(invitationId: string, response: "yes" | "no" | "maybe", formData?: FormData) {
   try {
@@ -59,6 +60,7 @@ export async function respondToInvitation(invitationId: string, response: "yes" 
 
     // Revalidate the paths
     revalidatePath(`/invitations/${invitationId}`)
+    revalidatePath(`/invites/${invitation.short_code || invitationId}`)
     revalidatePath(`/events/${invitation.event_id}`)
     revalidatePath("/dashboard")
 
@@ -121,6 +123,9 @@ export async function createInvitation(eventId: string, email: string, name?: st
       }
     }
 
+    // Generate a short code for the invitation
+    const shortCode = generateShortCode()
+
     // Create the invitation
     const { data: invitation, error: invitationError } = await supabase
       .from("invitations")
@@ -129,6 +134,7 @@ export async function createInvitation(eventId: string, email: string, name?: st
         email,
         name,
         status: "pending",
+        short_code: shortCode,
       })
       .select()
       .single()
@@ -156,6 +162,7 @@ export async function createInvitation(eventId: string, email: string, name?: st
       success: true,
       message: `Invitation sent to ${email}`,
       invitationId: invitation.id,
+      shortCode: shortCode,
     }
   } catch (error: any) {
     return {

@@ -24,11 +24,25 @@ import {
   Clock,
   BarChart3,
   CalendarDays,
-  QrCode,
+  RefreshCw,
+  Trash2,
 } from "lucide-react"
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
 import "react-circular-progressbar/dist/styles.css"
 import type { Profile, Event, ActivityLog } from "@/lib/supabase/types"
+import { useAnalyticsData } from "@/hooks/use-analytics-data"
+import { useToast } from "@/components/ui/use-toast"
+import { clearAllCache } from "@/lib/utils/cache-utils"
+import { EventItemComponent } from "@/components/dashboard/event-item"
+import {
+  TableSelectionProvider,
+  useTableSelection,
+  SelectAllCheckbox,
+  SelectionActions,
+} from "@/components/ui/table-selection"
+import { Button } from "@/components/ui/button"
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
+import { deleteMultipleEvents } from "@/app/actions/event-actions"
 
 type DashboardContentProps = {
   user: User
@@ -44,12 +58,6 @@ type DashboardContentProps = {
     pending: number
     total: number
   }
-  analyticsData: {
-    views: number
-    responses: number
-    engagement: number
-    growth: number
-  }
   recentActivity: ActivityLog[]
   onSignOut: () => void
   isSigningOut: boolean
@@ -60,28 +68,27 @@ export default function DashboardContent({
   profile,
   events,
   responseStats,
-  analyticsData,
   recentActivity,
   onSignOut,
   isSigningOut,
 }: DashboardContentProps) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const { toast } = useToast()
+
+  // Use the analytics data hook
+  const {
+    analyticsData,
+    isLoading: isLoadingAnalytics,
+    isRefetching: isRefetchingAnalytics,
+    refetch: refetchAnalytics,
+  } = useAnalyticsData(user.id)
 
   // Format user display name
   const displayName = profile?.full_name || user.email?.split("@")[0] || "User"
   const userInitial = displayName.charAt(0).toUpperCase()
-
-  // Format date for display
-  const formatEventDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
-    }).format(date)
-  }
 
   // Format activity time
   const formatActivityTime = (dateString: string) => {
@@ -101,6 +108,22 @@ export default function DashboardContent({
     } else {
       return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date)
     }
+  }
+
+  // Function to refresh all data
+  const refreshAllData = async () => {
+    setRefreshing(true)
+
+    // Clear all cache
+    clearAllCache()
+
+    // Refetch analytics
+    await refetchAnalytics()
+
+    // Wait a bit to ensure all refreshes have started
+    setTimeout(() => {
+      setRefreshing(false)
+    }, 1000)
   }
 
   return (
@@ -143,15 +166,6 @@ export default function DashboardContent({
                   <span>Messages</span>
                 </a>
               </li>
-              <li>
-                <Link
-                  href="/scan"
-                  className="flex items-center gap-3 px-3 py-2 rounded-md text-white/70 hover:bg-white/5"
-                >
-                  <QrCode size={18} />
-                  <span>Scan QR</span>
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -192,6 +206,18 @@ export default function DashboardContent({
           </div>
 
           <div className="flex items-center gap-4">
+            <button
+              onClick={refreshAllData}
+              disabled={refreshing || isRefetchingAnalytics}
+              className="relative p-2 rounded-full hover:bg-white/5 disabled:opacity-50"
+              title="Refresh dashboard data"
+            >
+              <RefreshCw
+                size={20}
+                className={`text-white/70 ${refreshing || isRefetchingAnalytics ? "animate-spin" : ""}`}
+              />
+            </button>
+
             <button className="relative p-2 rounded-full hover:bg-white/5">
               <Bell size={20} className="text-white/70" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-[#9855FF] rounded-full"></span>
@@ -283,31 +309,35 @@ export default function DashboardContent({
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatsCardComponent
                 title="Total Views"
-                value={analyticsData.views.toLocaleString()}
+                value={analyticsData.views}
                 icon={<Eye className="w-5 h-5 text-[#9855FF]" />}
-                change={"+12.5%"}
-                changeType="positive"
+                change={analyticsData.changeRates.views}
+                changeType={analyticsData.changeTypes.views}
+                isLoading={isLoadingAnalytics || isRefetchingAnalytics}
               />
               <StatsCardComponent
                 title="Responses"
-                value={analyticsData.responses.toLocaleString()}
+                value={analyticsData.responses}
                 icon={<Mail className="w-5 h-5 text-[#9855FF]" />}
-                change={"+8.2%"}
-                changeType="positive"
+                change={analyticsData.changeRates.responses}
+                changeType={analyticsData.changeTypes.responses}
+                isLoading={isLoadingAnalytics || isRefetchingAnalytics}
               />
               <StatsCardComponent
                 title="Engagement Rate"
                 value={`${analyticsData.engagement}%`}
                 icon={<TrendingUp className="w-5 h-5 text-[#9855FF]" />}
-                change={"-2.1%"}
-                changeType="negative"
+                change={analyticsData.changeRates.engagement}
+                changeType={analyticsData.changeTypes.engagement}
+                isLoading={isLoadingAnalytics || isRefetchingAnalytics}
               />
               <StatsCardComponent
                 title="Monthly Growth"
                 value={`${analyticsData.growth}%`}
                 icon={<BarChart3 className="w-5 h-5 text-[#9855FF]" />}
-                change={"+5.3%"}
-                changeType="positive"
+                change={analyticsData.changeRates.growth}
+                changeType={analyticsData.changeTypes.growth}
+                isLoading={isLoadingAnalytics || isRefetchingAnalytics}
               />
             </section>
 
@@ -389,23 +419,40 @@ export default function DashboardContent({
                   </div>
                 </div>
 
-                {/* Event List */}
-                <div className="space-y-3">
-                  {events.upcoming.length > 0 ? (
-                    events.upcoming.slice(0, 3).map((event) => (
-                      <EventItemComponent
-                        key={event.id}
-                        title={event.title}
-                        date={formatEventDate(event.event_date)}
-                        attendees={10} // This would come from a count of invitations
-                        responses={5} // This would come from a count of responses
-                        status="upcoming"
-                      />
-                    ))
-                  ) : (
-                    <p className="text-white/50 text-center py-4">No upcoming events. Create your first event!</p>
-                  )}
-                </div>
+                {/* Event List with Selection */}
+                <TableSelectionProvider>
+                  <EventsTable
+                    events={events.upcoming.slice(0, 3)}
+                    onDeleteMultiple={async (selectedEvents) => {
+                      setIsDeleting(true)
+                      try {
+                        const result = await deleteMultipleEvents(selectedEvents.map((e) => e.id))
+                        if (result.success) {
+                          toast({
+                            title: "Events deleted",
+                            description: result.message,
+                          })
+                          refreshAllData()
+                        } else {
+                          toast({
+                            variant: "destructive",
+                            title: "Error",
+                            description: result.error,
+                          })
+                        }
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "An unexpected error occurred",
+                        })
+                      } finally {
+                        setIsDeleting(false)
+                        setShowDeleteDialog(false)
+                      }
+                    }}
+                  />
+                </TableSelectionProvider>
               </div>
             </div>
 
@@ -455,6 +502,81 @@ export default function DashboardContent({
   )
 }
 
+// Events Table Component with Row Selection
+function EventsTable({
+  events,
+  onDeleteMultiple,
+}: {
+  events: Event[]
+  onDeleteMultiple: (selectedEvents: Event[]) => Promise<void>
+}) {
+  const { selectedItems, deselectAll } = useTableSelection<Event>()
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDeleteSelected = async () => {
+    setIsDeleting(true)
+    try {
+      await onDeleteMultiple(selectedItems)
+      deselectAll()
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
+    }
+  }
+
+  return (
+    <div>
+      {selectedItems.length > 0 && (
+        <div className="bg-[#1A0B2E] border border-white/10 rounded-lg p-2 mb-4 flex items-center justify-between">
+          <div className="text-white">
+            <span className="font-medium">{selectedItems.length}</span> event{selectedItems.length !== 1 ? "s" : ""}{" "}
+            selected
+          </div>
+          <SelectionActions>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              className="flex items-center gap-1"
+            >
+              <Trash2 size={14} />
+              Delete Selected
+            </Button>
+          </SelectionActions>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {events.length > 0 ? (
+          <>
+            <div className="flex items-center px-4 py-2 bg-white/5 rounded-lg">
+              <SelectAllCheckbox items={events} className="mr-3" />
+              <span className="text-white/70 text-sm font-medium">Select All</span>
+            </div>
+            {events.map((event) => (
+              <EventItemComponent key={event.id} event={event} />
+            ))}
+          </>
+        ) : (
+          <p className="text-white/50 text-center py-4">No upcoming events. Create your first event!</p>
+        )}
+      </div>
+
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Selected Events"
+        description={`Are you sure you want to delete ${selectedItems.length} selected event${selectedItems.length !== 1 ? "s" : ""}? This action cannot be undone and will remove all invitations and data associated with these events.`}
+        confirmText="Delete Events"
+        variant="destructive"
+        onConfirm={handleDeleteSelected}
+        isLoading={isDeleting}
+      />
+    </div>
+  )
+}
+
 // Stats Card Component
 function StatsCardComponent({
   title,
@@ -462,59 +584,34 @@ function StatsCardComponent({
   icon,
   change,
   changeType,
+  isLoading = false,
 }: {
   title: string
-  value: string
+  value: string | number
   icon: React.ReactNode
   change: string
   changeType: "positive" | "negative"
+  isLoading?: boolean
 }) {
   return (
     <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-5">
       <div className="flex items-start justify-between mb-4">
         <div>
           <p className="text-white/70 text-sm mb-1">{title}</p>
-          <p className="text-2xl font-bold text-white">{value}</p>
+          <p className="text-2xl font-bold text-white">
+            {isLoading ? (
+              <span className="opacity-50">Loading...</span>
+            ) : typeof value === "number" ? (
+              value.toLocaleString()
+            ) : (
+              value
+            )}
+          </p>
         </div>
         <div className="p-2 bg-white/5 rounded-lg">{icon}</div>
       </div>
       <div className={`text-sm ${changeType === "positive" ? "text-green-500" : "text-red-500"}`}>
         {change} from last month
-      </div>
-    </div>
-  )
-}
-
-// Event Item Component
-function EventItemComponent({
-  title,
-  date,
-  attendees,
-  responses,
-  status,
-}: {
-  title: string
-  date: string
-  attendees: number
-  responses: number
-  status: "upcoming" | "past"
-}) {
-  return (
-    <div className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
-      <div>
-        <h4 className="font-medium text-white">{title}</h4>
-        <p className="text-white/70 text-sm">{date}</p>
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="text-right">
-          <p className="text-white/70 text-xs">Attendees</p>
-          <p className="text-white font-medium">{attendees}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-white/70 text-xs">Responses</p>
-          <p className="text-white font-medium">{responses}</p>
-        </div>
-        <div className="w-2 h-2 rounded-full bg-green-500"></div>
       </div>
     </div>
   )

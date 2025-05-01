@@ -41,7 +41,7 @@ export default function Home() {
 
   return (
     <div className="h-fit w-full bg-black overflow-x-hidden">
-      <div className="w-full md:h-screen min-h-fit pointer-events-auto relative flex flex-col justify-center items-center bg-gradient-to-b from-0% to-100% from-black to-[#010102]">
+      <div className="w-full md:h-screen h-svh pointer-events-auto relative flex flex-col justify-center items-center bg-gradient-to-b from-0% to-100% from-black to-[#010102]">
         <Navbar />
         <motion.img
           src="/Circles/Bacкground.svg"

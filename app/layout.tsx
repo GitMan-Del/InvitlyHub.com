@@ -8,8 +8,8 @@ import Script from "next/script"
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
 export const metadata: Metadata = {
-  title: "Next.js Supabase Auth",
-  description: "Authentication with Next.js and Supabase",
+  title: "InvitlyHub.com",
+  description: "Easy to design invitations for any event and track your guest responses in real-time",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1",
     generator: 'v0.dev'
 }

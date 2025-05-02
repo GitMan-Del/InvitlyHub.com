@@ -245,7 +245,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="absolute w-[300px] sm:w-[500px] h-[200px] sm:h-[300px] blur-[120px] bg-[#622A9A]"></div>
+        <div className="absolute w-[300px] sm:w-[70%] h-[200px] sm:h-fit blur-[120px] bg-[#622A9A]"></div>
 
         <div className="flex flex-col md:flex-row gap-6 sm:gap-10 justify-center items-center px-4">
           {[

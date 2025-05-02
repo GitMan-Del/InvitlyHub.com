@@ -19,6 +19,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
+  // Special handling for event pages - don't redirect, but let the page handle auth state
+  if (pathname.startsWith("/events/") && pathname.length > 8) {
+    return res
+  }
+
   // Special handling for invitation pages - don't redirect, but let the page handle auth state
   if (pathname.startsWith("/invitations/") || pathname.startsWith("/invites/")) {
     return res
@@ -41,5 +46,12 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/auth/signin", "/auth/signup", "/invitations/:path*", "/invites/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/auth/signin",
+    "/auth/signup",
+    "/invitations/:path*",
+    "/invites/:path*",
+    "/events/:path*",
+  ],
 }

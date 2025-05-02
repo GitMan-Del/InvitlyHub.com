@@ -69,7 +69,7 @@ export default function Navbar() {
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.7, ease: "easeOut" }}
-      className="flex items-center fixed justify-center border-b border-white/10 top-0 left-0 w-full h-fit p-3 bg-[#020103]/30 backdrop-blur-xl z-50"
+      className="flex items-center fixed justify-center border-b border-white/10 top-0 left-0 w-full h-fit p-3 bg-[#020103]/30 backdrop-blur-xl z-[1000]"
     >
       <div className="max-w-6xl w-full px-4 sm:px-6 flex flex-row items-center justify-between">
         <Link href="/">

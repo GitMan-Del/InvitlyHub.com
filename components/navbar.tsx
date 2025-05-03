@@ -2,38 +2,46 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, safeGetSession } from "@/lib/supabase/client"
 import { Menu, X } from "lucide-react"
 
 export default function Navbar() {
   const pathname = usePathname()
-  const supabase = createClient()
+  const router = useRouter()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setIsLoggedIn(!!session)
+      try {
+        setIsLoading(true)
+        const { session } = await safeGetSession()
+        setIsLoggedIn(!!session)
+      } catch (error) {
+        console.error("Error checking session:", error)
+        setIsLoggedIn(false)
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     checkSession()
 
+    const supabase = createClient()
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setIsLoggedIn(!!session)
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [supabase])
+  }, [])
 
   // Close mobile menu when clicking outside
   useEffect(() => {
@@ -159,7 +167,7 @@ export default function Navbar() {
                   className="block py-2 text-center bg-[#8C45FF]/40 hover:bg-[#8C45FF]/60 rounded-full transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  DASHBOARD
+                  {isLoading ? "LOADING..." : isLoggedIn ? "DASHBOARD" : "SIGN IN"}
                 </Link>
               </li>
             </ul>
@@ -184,7 +192,9 @@ export default function Navbar() {
                 `,
               }}
             >
-              <span className="text-white font-bold text-sm md:text-base">DASHBOARD</span>
+              <span className="text-white font-bold text-sm md:text-base">
+                {isLoading ? "LOADING..." : isLoggedIn ? "DASHBOARD" : "SIGN IN"}
+              </span>
             </div>
           </motion.button>
         </Link>

@@ -44,7 +44,7 @@ export default function Home() {
       <div className="w-full md:h-screen h-[100svh] pointer-events-auto relative flex flex-col justify-center items-center bg-gradient-to-b from-0% to-100% from-black to-[#010102]">
         <Navbar />
         <motion.img
-          src="/Circles/Bacкground.svg"
+          src="/Circles/Background.svg"
           alt="Circles"
           animate={{ rotate: 360 }}
           transition={{

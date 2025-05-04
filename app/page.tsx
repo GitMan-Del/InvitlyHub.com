@@ -236,97 +236,208 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="w-full relative min-h-screen gap-10 sm:gap-20 text-white bg-black flex flex-col items-center justify-center py-12 sm:py-20">
-        <div className="text-center mb-8 sm:mb-12 px-4">
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold">Pricing</h1>
-          <p className="text-gray-400 mt-2 max-w-[90%] sm:max-w-[70%] mx-auto text-center">
-            Choose the perfect plan to create, send, and track your invitations with ease. Whether you're hosting a
-            small party or managing large events
-          </p>
-        </div>
-
-        <div className="absolute w-[300px] sm:w-[70%] h-[200px] sm:h-fit blur-[120px] bg-[#622A9A]"></div>
-
-        <div className="flex flex-col md:flex-row gap-6 sm:gap-10 justify-center items-center px-4">
-          {[
-            {
-              title: "FREE",
-              price: "Free forever $0/mo",
-              features: ["✔️ Keyword optimization", "✔️ Automated meta tags", "✔️ Monitoring", "✔️ Monthly reports"],
-            },
-            {
-              title: "STANDARD",
-              price: "$5/mo",
-              features: [
-                "✔️ Keyword optimization",
-                "✔️ Automated meta tags",
-                "✔️ Monitoring",
-                "✔️ Monthly reports",
-                "✔️ Content suggestions",
-                "✔️ Link optimization",
-              ],
-              featured: true,
-            },
-            {
-              title: "BUSINESS",
-              price: "Contact Sales",
-              features: [
-                "✔️ Keyword optimization",
-                "✔️ Automated meta tags",
-                "✔️ Monitoring",
-                "✔️ Monthly reports",
-                "✔️ Content suggestions",
-                "✔️ Link optimization",
-                "✔️ Multi-user access",
-                "✔️ API integration",
-              ],
-            },
-          ].map((plan, index) => (
-            <div
-              key={index}
-              className={`w-full max-w-[250px] border border-white/15 h-auto sm:h-[350px] flex justify-between p-6 rounded-2xl items-start bg-black/20 flex-col backdrop-blur-2xl relative ${
-                plan.featured
-                  ? "z-50 scale-105 sm:scale-110 bg-gradient-to-b from-[#000000] from-29% to-100% to-transparent"
-                  : ""
-              }`}
+      {/* Enhanced Pricing Section */}
+      <section className="w-full relative py-16 md:py-24 text-white bg-black" aria-labelledby="pricing-heading">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          {/* Section Header */}
+          <div className="text-center mb-12 md:mb-16">
+            <h2
+              id="pricing-heading"
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 tracking-tight"
             >
-              {plan.featured && (
+              Pricing
+            </h2>
+            <p className="text-gray-400 text-base sm:text-lg max-w-3xl mx-auto">
+              Choose the perfect plan to create, send, and track your invitations with ease. Whether you're hosting a
+              small party or managing large events, we have a plan for you.
+            </p>
+          </div>
+
+          {/* Decorative Background */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div
+              className="absolute w-[300px] sm:w-[500px] md:w-[700px] h-[300px] md:h-[500px] 
+                        blur-[120px] bg-[#622A9A] opacity-30 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+              aria-hidden="true"
+            ></div>
+          </div>
+
+          {/* Pricing Cards Container */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 max-w-6xl mx-auto">
+            {/* FREE Plan */}
+            <div className="pricing-card group">
+              <div className="h-full flex flex-col p-6 sm:p-8 rounded-2xl bg-black/20 backdrop-blur-2xl border border-white/15 transition-all duration-300 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10">
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-2xl sm:text-3xl font-bold">FREE</h3>
+                    <span className="px-3 py-1 text-xs font-medium rounded-full bg-white/10">Get Started</span>
+                  </div>
+                  <div className="mb-4">
+                    <span className="text-3xl sm:text-4xl font-bold">$0</span>
+                    <span className="text-gray-400 ml-2">/month</span>
+                  </div>
+                  <p className="text-gray-400 text-sm mb-6">
+                    Perfect for individuals just getting started with event planning.
+                  </p>
+                </div>
+
+                <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6"></div>
+
+                <ul className="space-y-4 mb-8 flex-grow">
+                  {[
+                    "Up to 3 events per month",
+                    "Basic invitation templates",
+                    "Email invitations",
+                    "RSVP tracking",
+                    "Basic analytics",
+                  ].map((feature, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <span className="text-purple-400 mr-2">✓</span>
+                      <span className="text-sm text-gray-300">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  className="w-full py-3 px-6 rounded-full bg-gradient-to-r from-[#3D3D3D]/40 to-[#3D3D3D]/60 
+                            border border-white/10 text-white font-medium transition-all duration-300
+                            hover:shadow-lg hover:shadow-purple-500/10 hover:border-purple-500/30
+                            focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:ring-offset-2 focus:ring-offset-black"
+                  aria-label="Join waitlist for Free plan"
+                >
+                  Join waitlist
+                </button>
+              </div>
+            </div>
+
+            {/* STANDARD Plan - Featured */}
+            <div className="pricing-card featured relative z-20 transform md:-translate-y-4">
+              <div className="absolute inset-0 bg-gradient-to-b from-purple-600/20 to-transparent rounded-2xl blur-xl opacity-70"></div>
+              <div className="h-full flex flex-col p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-[#000000] from-29% to-100% to-transparent border border-purple-500/30 relative z-10 shadow-xl shadow-purple-500/10">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-600 to-purple-400 text-black font-bold text-xs py-1 px-4 rounded-full">
+                  MOST POPULAR
+                </div>
+
                 <img
-                  className="absolute top-0 left-0 w-full h-full object-cover pointer-events-none"
+                  className="absolute top-0 left-0 w-full h-full object-cover pointer-events-none opacity-30"
                   src="/Pattern.svg"
                   alt="Pattern background"
                   loading="lazy"
+                  aria-hidden="true"
                 />
-              )}
-              <div className="w-full flex flex-col items-start gap-4">
-                <h1 className="text-3xl">{plan.title}</h1>
-                <p className="text-sm -mt-1">{plan.price}</p>
-                <div className="w-full h-[1px] bg-[#282729]"></div>
 
-                <ul className="gap-3 sm:gap-5 flex flex-col text-sm">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx}>{feature}</li>
+                <div className="mb-6 relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-2xl sm:text-3xl font-bold">STANDARD</h3>
+                    <span className="px-3 py-1 text-xs font-medium rounded-full bg-purple-500/20">Best Value</span>
+                  </div>
+                  <div className="mb-4">
+                    <span className="text-3xl sm:text-4xl font-bold">$5</span>
+                    <span className="text-gray-400 ml-2">/month</span>
+                  </div>
+                  <p className="text-gray-300 text-sm mb-6">Ideal for regular event planners and small businesses.</p>
+                </div>
+
+                <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/30 to-transparent mb-6"></div>
+
+                <ul className="space-y-4 mb-8 flex-grow">
+                  {[
+                    "Unlimited events",
+                    "Premium invitation templates",
+                    "Email and SMS invitations",
+                    "Advanced RSVP tracking",
+                    "Detailed analytics",
+                    "Custom branding",
+                    "Priority support",
+                  ].map((feature, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <span className="text-purple-400 mr-2">✓</span>
+                      <span className="text-sm text-white">{feature}</span>
+                    </li>
                   ))}
                 </ul>
-              </div>
 
-              <button className="relative opacity-90 overflow-hidden rounded-3xl p-1 backdrop-blur-md bg-transparent hover:cursor-pointer w-full mt-6">
-                <div
-                  className="relative flex items-center justify-center rounded-3xl bg-[#3D3D3D]/40 px-6 py-2 shadow-inner shadow-white/20"
-                  style={{
-                    boxShadow: `
-                    inset 0 1px 3px rgba(255,255,255,0.3),
-                    inset 0 -1px 3px rgba(255,255,255,0.2),
-                    inset 1px 0 3px rgba(255,255,255,0.2),
-                    inset -1px 0 3px rgba(255,255,255,0.3)
-                  `,
-                  }}
+                <button
+                  className="w-full py-3 px-6 rounded-full bg-gradient-to-r from-purple-600 to-purple-500 
+                            text-white font-medium transition-all duration-300
+                            hover:shadow-lg hover:shadow-purple-500/30 hover:from-purple-500 hover:to-purple-600
+                            focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black"
+                  aria-label="Join waitlist for Standard plan"
                 >
-                  <span className="text-white font-bold text-sm md:text-base">Join waitlist</span>
-                </div>
-              </button>
+                  Join waitlist
+                </button>
+              </div>
             </div>
-          ))}
+
+            {/* BUSINESS Plan */}
+            <div className="pricing-card group">
+              <div className="h-full flex flex-col p-6 sm:p-8 rounded-2xl bg-black/20 backdrop-blur-2xl border border-white/15 transition-all duration-300 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10">
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-2xl sm:text-3xl font-bold">BUSINESS</h3>
+                    <span className="px-3 py-1 text-xs font-medium rounded-full bg-white/10">Enterprise</span>
+                  </div>
+                  <div className="mb-4">
+                    <span className="text-3xl sm:text-4xl font-bold">Custom</span>
+                  </div>
+                  <p className="text-gray-400 text-sm mb-6">
+                    For organizations with advanced needs and large-scale events.
+                  </p>
+                </div>
+
+                <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent mb-6"></div>
+
+                <ul className="space-y-4 mb-8 flex-grow">
+                  {[
+                    "Everything in Standard",
+                    "White-label solution",
+                    "API access",
+                    "Multi-user accounts",
+                    "Advanced security features",
+                    "Custom integrations",
+                    "Dedicated account manager",
+                    "24/7 priority support",
+                  ].map((feature, idx) => (
+                    <li key={idx} className="flex items-start">
+                      <span className="text-purple-400 mr-2">✓</span>
+                      <span className="text-sm text-gray-300">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  className="w-full py-3 px-6 rounded-full bg-gradient-to-r from-[#3D3D3D]/40 to-[#3D3D3D]/60 
+                            border border-white/10 text-white font-medium transition-all duration-300
+                            hover:shadow-lg hover:shadow-purple-500/10 hover:border-purple-500/30
+                            focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:ring-offset-2 focus:ring-offset-black"
+                  aria-label="Contact sales for Business plan"
+                >
+                  Contact sales
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Information */}
+          <div className="mt-12 text-center">
+            <p className="text-gray-400 text-sm">
+              All plans include a 7-day free trial. No credit card required to start.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-4">
+              <div className="flex items-center">
+                <span className="w-4 h-4 rounded-full bg-purple-500 mr-2"></span>
+                <span className="text-sm text-gray-300">24/7 Support</span>
+              </div>
+              <div className="flex items-center">
+                <span className="w-4 h-4 rounded-full bg-purple-500 mr-2"></span>
+                <span className="text-sm text-gray-300">99.9% Uptime</span>
+              </div>
+              <div className="flex items-center">
+                <span className="w-4 h-4 rounded-full bg-purple-500 mr-2"></span>
+                <span className="text-sm text-gray-300">Cancel Anytime</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

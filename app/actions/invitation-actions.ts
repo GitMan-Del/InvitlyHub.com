@@ -171,3 +171,52 @@ export async function createInvitation(eventId: string, email: string, name?: st
     }
   }
 }
+
+// Add this new function to resend an invitation
+export async function resendInvitation(invitationId: string) {
+  const supabase = createClient()
+
+  // Get the invitation details
+  const { data: invitation, error: invitationError } = await supabase
+    .from("invitations")
+    .select("*, events(*)")
+    .eq("id", invitationId)
+    .single()
+
+  if (invitationError || !invitation) {
+    console.error("Error fetching invitation:", invitationError)
+    throw new Error("Failed to fetch invitation")
+  }
+
+  // Update the invitation with a new timestamp
+  const { error: updateError } = await supabase
+    .from("invitations")
+    .update({
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", invitationId)
+
+  if (updateError) {
+    console.error("Error updating invitation:", updateError)
+    throw new Error("Failed to update invitation")
+  }
+
+  // Log the activity
+  const { error: logError } = await supabase.from("activity_logs").insert({
+    user_id: invitation.events.user_id,
+    event_id: invitation.event_id,
+    action: "resend_invitation",
+    details: `Resent invitation to ${invitation.email}`,
+  })
+
+  if (logError) {
+    console.error("Error logging activity:", logError)
+    // Non-critical error, continue
+  }
+
+  // In a real application, you would send an email here
+  // For now, we'll just return success
+
+  revalidatePath(`/events/${invitation.event_id}/guests`)
+  return { success: true }
+}

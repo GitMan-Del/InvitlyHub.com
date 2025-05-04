@@ -1,7 +1,11 @@
-import Link from "next/link"
+"use client"
+
 import { format } from "date-fns"
-import { Calendar, Clock, MapPin, Users } from "lucide-react"
+import { Calendar, Clock, MapPin, Share2, Users } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import EnhancedQRCode from "@/components/events/enhanced-qr-code"
+import { respondToInvitation } from "@/app/actions/invitation-actions"
+import { useRef } from "react"
 
 interface EventDetailsProps {
   event: any
@@ -15,187 +19,271 @@ interface EventDetailsProps {
   }
   isOwner: boolean
   baseUrl: string
+  userInvitation?: any
 }
 
-export default function EventDetails({ event, attendees, responseStats, isOwner, baseUrl }: EventDetailsProps) {
+export default function EventDetails({
+  event,
+  attendees,
+  responseStats,
+  isOwner,
+  baseUrl,
+  userInvitation,
+}: EventDetailsProps) {
+  const qrCodeRef = useRef<HTMLCanvasElement>(null)
+
   // Format the event date
-  const eventDate = event.event_date ? new Date(event.event_date) : new Date()
+  const eventDate = new Date(event.event_date)
   const formattedDate = format(eventDate, "EEEE, MMMM d, yyyy")
   const formattedTime = format(eventDate, "h:mm a")
 
-  // Create the invitation URL
-  const inviteUrl = `${baseUrl}/invites/${event.invite_code}`
+  // Generate simple RSVP URL for the QR code
+  const qrCodeUrl = `${baseUrl}/rsvp/${event.short_code || event.id}`
+
+  // Generate invitation URL for sharing
+  const invitationUrl = `${baseUrl}/invites/${event.short_code || event.id}`
+
+  // Function to copy invitation link
+  const copyInvitationLink = () => {
+    navigator.clipboard.writeText(invitationUrl)
+    alert("Invitation link copied to clipboard!")
+  }
+
+  // Function to download QR code
+  const downloadQRCode = () => {
+    if (!qrCodeRef.current) return
+
+    // Create a safe filename from the event title
+    const safeTitle = event.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()
+    const filename = `event_qr_${safeTitle}.png`
+
+    // Convert canvas to data URL
+    const dataUrl = qrCodeRef.current.toDataURL("image/png")
+
+    // Create download link
+    const link = document.createElement("a")
+    link.href = dataUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+
+    // Clean up
+    document.body.removeChild(link)
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Navigation */}
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-8">
-          <Link
-            href="/events"
-            className="text-[#9855FF] hover:text-[#8144E5] flex items-center gap-2 transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="m15 18-6-6 6-6" />
-            </svg>
-            Back to Events
-          </Link>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">{event.title}</h1>
+          <p className="text-gray-400">Created by {event.profiles?.full_name || "Anonymous"}</p>
         </div>
 
-        {/* Event Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">{event.title}</h1>
-          <p className="text-gray-400 text-lg">{event.description}</p>
-        </div>
-
-        {/* Event Details Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Left Column - Details */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Date & Time */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Event details - 2/3 width on desktop */}
+          <div className="lg:col-span-2 space-y-6">
             <div className="bg-gray-900 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Calendar className="text-[#9855FF]" size={20} />
-                Date & Time
-              </h2>
-              <div className="ml-7">
-                <p className="text-lg">{formattedDate}</p>
-                <p className="text-gray-400 flex items-center gap-2 mt-2">
-                  <Clock size={16} />
-                  {formattedTime}
+              <h2 className="text-xl font-semibold mb-4">Event Details</h2>
+              <div className="space-y-4">
+                <div className="flex items-start">
+                  <Calendar className="w-5 h-5 mr-3 text-[#9855FF] mt-0.5" />
+                  <div>
+                    <p className="font-medium">Date</p>
+                    <p className="text-gray-400">{formattedDate}</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <Clock className="w-5 h-5 mr-3 text-[#9855FF] mt-0.5" />
+                  <div>
+                    <p className="font-medium">Time</p>
+                    <p className="text-gray-400">{formattedTime}</p>
+                  </div>
+                </div>
+                {event.location && (
+                  <div className="flex items-start">
+                    <MapPin className="w-5 h-5 mr-3 text-[#9855FF] mt-0.5" />
+                    <div>
+                      <p className="font-medium">Location</p>
+                      <p className="text-gray-400">{event.location}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-start">
+                  <Users className="w-5 h-5 mr-3 text-[#9855FF] mt-0.5" />
+                  <div>
+                    <p className="font-medium">Attendees</p>
+                    <p className="text-gray-400">{attendees} invited</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {event.description && (
+              <div className="bg-gray-900 rounded-lg p-6">
+                <h2 className="text-xl font-semibold mb-4">Description</h2>
+                <p className="text-gray-400 whitespace-pre-line">{event.description}</p>
+              </div>
+            )}
+
+            {/* Response stats for event owner */}
+            {isOwner && (
+              <div className="bg-gray-900 rounded-lg p-6">
+                <h2 className="text-xl font-semibold mb-4">Response Statistics</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-gray-800 p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-green-500">{responseStats.yes}</p>
+                    <p className="text-sm text-gray-400">Accepted</p>
+                  </div>
+                  <div className="bg-gray-800 p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-red-500">{responseStats.no}</p>
+                    <p className="text-sm text-gray-400">Declined</p>
+                  </div>
+                  <div className="bg-gray-800 p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-yellow-500">{responseStats.maybe}</p>
+                    <p className="text-sm text-gray-400">Maybe</p>
+                  </div>
+                  <div className="bg-gray-800 p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold text-blue-500">{responseStats.pending}</p>
+                    <p className="text-sm text-gray-400">Pending</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Invitation response section for invitees */}
+            {!isOwner && userInvitation && (
+              <div className="bg-gray-900 rounded-lg p-6">
+                <h2 className="text-xl font-semibold mb-4">Your Response</h2>
+                <div className="flex flex-wrap gap-3">
+                  <form
+                    action={async () => {
+                      await respondToInvitation(userInvitation.id, "yes")
+                    }}
+                  >
+                    <Button
+                      type="submit"
+                      variant={userInvitation.status === "yes" ? "default" : "outline"}
+                      className={`min-w-[100px] ${userInvitation.status === "yes" ? "" : "hover:bg-green-500/10 hover:text-green-500 hover:border-green-500"}`}
+                    >
+                      Accept
+                    </Button>
+                  </form>
+
+                  <form
+                    action={async () => {
+                      await respondToInvitation(userInvitation.id, "maybe")
+                    }}
+                  >
+                    <Button
+                      type="submit"
+                      variant={userInvitation.status === "maybe" ? "default" : "outline"}
+                      className={`min-w-[100px] ${userInvitation.status === "maybe" ? "" : "hover:bg-yellow-500/10 hover:text-yellow-500 hover:border-yellow-500"}`}
+                    >
+                      Maybe
+                    </Button>
+                  </form>
+
+                  <form
+                    action={async () => {
+                      await respondToInvitation(userInvitation.id, "no")
+                    }}
+                  >
+                    <Button
+                      type="submit"
+                      variant={userInvitation.status === "no" ? "default" : "outline"}
+                      className={`min-w-[100px] ${userInvitation.status === "no" ? "" : "hover:bg-red-500/10 hover:text-red-500 hover:border-red-500"}`}
+                    >
+                      Decline
+                    </Button>
+                  </form>
+                </div>
+                <p className="mt-4 text-sm text-gray-400">
+                  Current status:
+                  <span
+                    className={`ml-2 font-medium ${
+                      userInvitation.status === "yes"
+                        ? "text-green-500"
+                        : userInvitation.status === "no"
+                          ? "text-red-500"
+                          : userInvitation.status === "maybe"
+                            ? "text-yellow-500"
+                            : "text-blue-500"
+                    }`}
+                  >
+                    {userInvitation.status === "yes"
+                      ? "Accepted"
+                      : userInvitation.status === "no"
+                        ? "Declined"
+                        : userInvitation.status === "maybe"
+                          ? "Maybe"
+                          : "Pending"}
+                  </span>
                 </p>
               </div>
-            </div>
-
-            {/* Location */}
-            <div className="bg-gray-900 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <MapPin className="text-[#9855FF]" size={20} />
-                Location
-              </h2>
-              <div className="ml-7">
-                <p className="text-lg">{event.location || "No location specified"}</p>
-                {event.location_details && <p className="text-gray-400 mt-2">{event.location_details}</p>}
-              </div>
-            </div>
-
-            {/* Attendees */}
-            <div className="bg-gray-900 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <Users className="text-[#9855FF]" size={20} />
-                Attendees ({attendees})
-              </h2>
-              <div className="ml-7">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span>
-                      Going: {responseStats.yes} (
-                      {responseStats.total > 0 ? Math.round((responseStats.yes / responseStats.total) * 100) : 0}%)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <span>
-                      Not Going: {responseStats.no} (
-                      {responseStats.total > 0 ? Math.round((responseStats.no / responseStats.total) * 100) : 0}%)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                    <span>
-                      Maybe: {responseStats.maybe} (
-                      {responseStats.total > 0 ? Math.round((responseStats.maybe / responseStats.total) * 100) : 0}%)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-gray-500"></div>
-                    <span>
-                      Pending: {responseStats.pending} (
-                      {responseStats.total > 0 ? Math.round((responseStats.pending / responseStats.total) * 100) : 0}%)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Right Column - QR Code */}
-          <div>
+          {/* QR code and sharing - 1/3 width on desktop */}
+          <div className="space-y-6">
             <div className="bg-gray-900 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Invitation QR Code</h2>
-              <div className="bg-white p-4 rounded-lg flex justify-center">
-                <EnhancedQRCode value={inviteUrl} size={200} />
-              </div>
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-400 mb-2">Share this QR code with your guests</p>
-                <div className="flex justify-center">
-                  <a
-                    href={inviteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#9855FF] hover:text-[#8144E5] text-sm underline"
-                  >
-                    View Invitation Page
-                  </a>
+              <h2 className="text-xl font-semibold mb-4">Event QR Code</h2>
+              <div className="flex justify-center mb-4">
+                <div className="bg-white p-4 rounded-lg">
+                  {/* Using the simple RSVP URL here */}
+                  <EnhancedQRCode
+                    value={qrCodeUrl}
+                    size={200}
+                    logoUrl="/Logo.png"
+                    logoSize={40}
+                    foregroundColor="#9855FF"
+                    backgroundColor="#FFFFFF"
+                    ref={qrCodeRef}
+                  />
                 </div>
+              </div>
+              <p className="text-sm text-gray-400 text-center mb-4">
+                Scan this QR code to quickly respond to the invitation
+              </p>
+              <div className="space-y-3">
+                <Button
+                  onClick={copyInvitationLink}
+                  variant="outline"
+                  className="w-full flex items-center justify-center"
+                >
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Copy Invitation Link
+                </Button>
+                <Button onClick={downloadQRCode} variant="outline" className="w-full">
+                  Download QR Code
+                </Button>
               </div>
             </div>
 
-            {/* Owner Actions */}
             {isOwner && (
-              <div className="mt-6 bg-gray-900 rounded-lg p-6">
+              <div className="bg-gray-900 rounded-lg p-6">
                 <h2 className="text-xl font-semibold mb-4">Event Management</h2>
                 <div className="space-y-3">
-                  <Link
-                    href={`/events/${event.id}/edit`}
-                    className="w-full bg-[#9855FF] hover:bg-[#8144E5] text-white py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2"
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => (window.location.href = `/events/${event.id}/edit`)}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                      <path d="m15 5 4 4" />
-                    </svg>
                     Edit Event
-                  </Link>
-                  <Link
-                    href={`/events/${event.id}/invitations`}
-                    className="w-full border border-[#9855FF] text-[#9855FF] hover:bg-[#9855FF] hover:bg-opacity-10 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2"
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => (window.location.href = `/events/${event.id}/invitations`)}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                    </svg>
                     Manage Invitations
-                  </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => (window.location.href = `/events/${event.id}/guests`)}
+                  >
+                    View Guest List
+                  </Button>
                 </div>
               </div>
             )}

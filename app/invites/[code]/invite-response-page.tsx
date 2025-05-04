@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -39,6 +39,7 @@ export default function InviteResponsePage({
   baseUrl,
 }: InviteResponsePageProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [responding, setResponding] = useState(false)
   const [response, setResponse] = useState<"yes" | "no" | "maybe" | null>(null)
@@ -48,6 +49,54 @@ export default function InviteResponsePage({
 
   // Determine the current status of the invitation
   const currentStatus = invitation.status || "pending"
+
+  // Handle URL parameters
+  useEffect(() => {
+    // Check for error messages
+    const error = searchParams.get("error")
+    if (error) {
+      let errorMessage = "An error occurred while processing your response."
+
+      if (error === "wrong_email") {
+        const email = searchParams.get("email")
+        errorMessage = `This invitation was sent to ${email}. Please sign in with that email address.`
+      } else if (error === "invalid_response") {
+        errorMessage = "Invalid response type. Please select Yes, No, or Maybe."
+      } else if (error === "server_error") {
+        errorMessage = "A server error occurred. Please try again later."
+      }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    }
+
+    // Check if auth is required
+    const authRequired = searchParams.get("auth_required")
+    const intendedResponse = searchParams.get("intended_response")
+
+    if (authRequired === "true" && intendedResponse) {
+      if (isLoggedIn) {
+        // User is already logged in, process the response
+        handleResponse(intendedResponse as "yes" | "no" | "maybe")
+      } else {
+        // Show auth modal
+        setShowAuthModal(true)
+        setPendingResponse(intendedResponse as "yes" | "no" | "maybe")
+
+        // Store the intended response
+        localStorage.setItem(
+          "pendingInviteResponse",
+          JSON.stringify({
+            inviteCode: invitation.id || invitation.short_code,
+            response: intendedResponse,
+          }),
+        )
+      }
+    }
+  }, [searchParams, isLoggedIn, invitation.id, invitation.short_code])
 
   // Check for pending response after login
   useEffect(() => {
@@ -59,8 +108,7 @@ export default function InviteResponsePage({
 
   // Check if we're returning from authentication
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const authReturn = urlParams.get("auth_return")
+    const authReturn = searchParams.get("auth_return")
 
     if (authReturn === "true" && isLoggedIn) {
       setProcessingAuth(true)
@@ -85,7 +133,7 @@ export default function InviteResponsePage({
         setProcessingAuth(false)
       }
     }
-  }, [isLoggedIn, invitation])
+  }, [isLoggedIn, invitation, searchParams])
 
   const handleResponse = async (responseType: "yes" | "no" | "maybe") => {
     if (!isLoggedIn) {
@@ -93,7 +141,7 @@ export default function InviteResponsePage({
       localStorage.setItem(
         "pendingInviteResponse",
         JSON.stringify({
-          inviteCode: invitation.id,
+          inviteCode: invitation.id || invitation.short_code,
           response: responseType,
         }),
       )
@@ -171,6 +219,11 @@ export default function InviteResponsePage({
   const handleAuthRedirect = (type: "signin" | "signup") => {
     const redirectUrl = `${window.location.pathname}?auth_return=true`
     router.push(`/auth/${type}?redirect=${encodeURIComponent(redirectUrl)}`)
+  }
+
+  // Generate quick response links
+  const generateQuickResponseUrl = (responseType: "yes" | "no" | "maybe") => {
+    return `${baseUrl}/invites/${invitation.short_code || invitation.id}/quick-response/${responseType}`
   }
 
   return (
@@ -383,7 +436,7 @@ export default function InviteResponsePage({
                 </div>
               )}
 
-              {/* Response Buttons */}
+              {/* Quick Response Buttons */}
               <div className="bg-white/5 rounded-lg p-4">
                 <h3 className="text-lg font-semibold text-white mb-4">Will you attend this event?</h3>
 
@@ -455,7 +508,7 @@ export default function InviteResponsePage({
           {/* Side Panel */}
           <div className="md:col-span-1">
             <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Event Information</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">Quick Response Links</h3>
 
               {/* QR Code */}
               <div className="bg-white p-4 rounded-lg mb-4">
@@ -468,6 +521,35 @@ export default function InviteResponsePage({
                   height={200}
                   className="mx-auto"
                 />
+              </div>
+
+              <p className="text-sm text-white/70 text-center mb-4">
+                Scan this QR code or share these links to quickly respond to the invitation:
+              </p>
+
+              {/* Quick Response Links */}
+              <div className="space-y-3 mb-4">
+                <a
+                  href={generateQuickResponseUrl("yes")}
+                  className="block w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <CheckCircle size={16} />
+                  Accept Invitation
+                </a>
+                <a
+                  href={generateQuickResponseUrl("maybe")}
+                  className="block w-full bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <HelpCircle size={16} />
+                  Maybe Attending
+                </a>
+                <a
+                  href={generateQuickResponseUrl("no")}
+                  className="block w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <XCircle size={16} />
+                  Decline Invitation
+                </a>
               </div>
 
               {/* Share Options */}
@@ -533,12 +615,6 @@ export default function InviteResponsePage({
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
                     width="16"
                     height="16"
                     viewBox="0 0 24 24"

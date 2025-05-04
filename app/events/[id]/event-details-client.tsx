@@ -15,6 +15,7 @@ interface EventDetailsClientProps {
   }
   isOwner: boolean
   baseUrl: string
+  userInvitation?: any
 }
 
 export default function EventDetailsClient({
@@ -23,6 +24,7 @@ export default function EventDetailsClient({
   responseStats,
   isOwner,
   baseUrl,
+  userInvitation,
 }: EventDetailsClientProps) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [hasError, setHasError] = useState(false)
@@ -87,6 +89,7 @@ export default function EventDetailsClient({
       responseStats={responseStats}
       isOwner={isOwner}
       baseUrl={baseUrl}
+      userInvitation={userInvitation}
     />
   )
 }

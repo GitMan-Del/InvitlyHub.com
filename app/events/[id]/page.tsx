@@ -123,6 +123,19 @@ export default async function EventPage({ params }: { params: { id: string } }) 
     } = await supabase.auth.getSession()
     const isOwner = session?.user.id === event.user_id
 
+    // Get user's invitation if they're not the owner
+    let userInvitation = null
+    if (session && !isOwner) {
+      const { data: invitation } = await supabase
+        .from("invitations")
+        .select("*")
+        .eq("event_id", params.id)
+        .eq("email", session.user.email)
+        .maybeSingle()
+
+      userInvitation = invitation
+    }
+
     // Get base URL for QR code
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
@@ -142,6 +155,7 @@ export default async function EventPage({ params }: { params: { id: string } }) 
           responseStats={{ yes, no, maybe, pending, total: responses.length }}
           isOwner={isOwner}
           baseUrl={baseUrl}
+          userInvitation={userInvitation}
         />
       </Suspense>
     )

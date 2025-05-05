@@ -3,8 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Calendar, Clock, MapPin, ChevronDown, ChevronUp, Trash2, MoreVertical } from "lucide-react"
-import QRCodeDisplay from "./qr-code"
+import { Calendar, Clock, MapPin, Trash2, MoreVertical, Share2 } from "lucide-react"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { deleteEvent } from "@/app/actions/event-actions"
 import { useToast } from "@/components/ui/use-toast"
@@ -17,9 +16,9 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event, baseUrl }: EventCardProps) {
-  const [expanded, setExpanded] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [copied, setCopied] = useState(false)
   const { toast } = useToast()
 
   // Format date for display
@@ -43,8 +42,8 @@ export default function EventCard({ event, baseUrl }: EventCardProps) {
     }).format(date)
   }
 
-  // Generate QR code value (URL to event)
-  const qrCodeValue = `${baseUrl}/events/${event.id}`
+  // Generate event URL
+  const eventUrl = `${baseUrl}/events/${event.id}`
 
   const handleDelete = async () => {
     setIsDeleting(true)
@@ -74,6 +73,34 @@ export default function EventCard({ event, baseUrl }: EventCardProps) {
       })
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const shareEvent = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: event.title,
+          text: `Check out this event: ${event.title}`,
+          url: eventUrl,
+        })
+      } else {
+        await navigator.clipboard.writeText(eventUrl)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+
+        toast({
+          title: "Link Copied",
+          description: "Event link has been copied to clipboard.",
+        })
+      }
+    } catch (error) {
+      console.error("Error sharing:", error)
+      toast({
+        variant: "destructive",
+        title: "Sharing Failed",
+        description: "Unable to share the event. Try copying the link instead.",
+      })
     }
   }
 
@@ -121,6 +148,10 @@ export default function EventCard({ event, baseUrl }: EventCardProps) {
                     <DropdownMenuItem asChild>
                       <Link href={`/events/${event.id}`}>View Details</Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={shareEvent}>
+                      <Share2 size={16} className="mr-2" />
+                      {copied ? "Copied!" : "Share Event"}
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-red-500 focus:text-red-500"
                       onClick={() => setShowDeleteDialog(true)}
@@ -140,29 +171,16 @@ export default function EventCard({ event, baseUrl }: EventCardProps) {
             </div>
           )}
 
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center justify-center w-full mt-4 text-white/70 hover:text-white text-sm"
-          >
-            {expanded ? (
-              <>
-                <ChevronUp className="h-4 w-4 mr-1" />
-                Hide QR Code
-              </>
-            ) : (
-              <>
-                <ChevronDown className="h-4 w-4 mr-1" />
-                Show QR Code
-              </>
-            )}
-          </button>
-        </div>
-
-        {expanded && (
-          <div className="p-5 bg-black/30 border-t border-white/10">
-            <QRCodeDisplay value={qrCodeValue} eventTitle={event.title} size={180} />
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={shareEvent}
+              className="flex items-center text-white/70 hover:text-white text-sm bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-md transition-colors"
+            >
+              <Share2 className="h-4 w-4 mr-1.5" />
+              {copied ? "Copied!" : "Share Event"}
+            </button>
           </div>
-        )}
+        </div>
       </motion.div>
 
       <ConfirmationDialog

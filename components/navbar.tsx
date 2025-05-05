@@ -97,6 +97,11 @@ export default function Navbar() {
             </Link>
           </li>
           <li>
+            <Link href="/join" className="hover:text-white/70 transition-colors">
+              Join Event
+            </Link>
+          </li>
+          <li>
             <Link href="#" className="hover:text-white/70 transition-colors">
               Company
             </Link>
@@ -104,6 +109,11 @@ export default function Navbar() {
           <li>
             <Link href="#" className="hover:text-white/70 transition-colors">
               Changelog
+            </Link>
+          </li>
+          <li>
+            <Link href="/join" className="hover:text-white/70 transition-colors">
+              Join Event
             </Link>
           </li>
         </ul>

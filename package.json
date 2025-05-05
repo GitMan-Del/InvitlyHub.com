@@ -60,14 +60,11 @@
     "zod": "^3.24.1",
     "@emotion/is-prop-valid": "latest",
     "@supabase/supabase-js": "latest",
-    "react-qr-code": "latest",
-    "qrcode.react": "latest",
     "framer-motion": "latest",
     "uuid": "latest",
     "@supabase/auth-helpers-nextjs": "latest",
-    "html5-qrcode": "latest",
     "react-circular-progressbar": "latest",
-    "qrcode": "latest"
+    "qrcode.react": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

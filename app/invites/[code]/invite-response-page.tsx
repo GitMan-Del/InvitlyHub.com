@@ -16,6 +16,8 @@ import {
   User,
   AlertCircle,
   Loader2,
+  Share,
+  Copy,
 } from "lucide-react"
 import { respondToInvite } from "@/app/actions/invite-actions"
 import { useToast } from "@/components/ui/use-toast"
@@ -46,6 +48,7 @@ export default function InviteResponsePage({
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [pendingResponse, setPendingResponse] = useState<"yes" | "no" | "maybe" | null>(null)
   const [processingAuth, setProcessingAuth] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   // Determine the current status of the invitation
   const currentStatus = invitation.status || "pending"
@@ -221,8 +224,8 @@ export default function InviteResponsePage({
     router.push(`/auth/${type}?redirect=${encodeURIComponent(redirectUrl)}`)
   }
 
-  // Generate quick response links
-  const generateQuickResponseUrl = (responseType: "yes" | "no" | "maybe") => {
+  // Generate direct response links
+  const generateDirectResponseUrl = (responseType: "yes" | "no" | "maybe") => {
     return `${baseUrl}/invites/${invitation.short_code || invitation.id}/quick-response/${responseType}`
   }
 
@@ -508,43 +511,28 @@ export default function InviteResponsePage({
           {/* Side Panel */}
           <div className="md:col-span-1">
             <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Quick Response Links</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">Share Invitation</h3>
 
-              {/* QR Code */}
-              <div className="bg-white p-4 rounded-lg mb-4">
-                <Image
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                    `${baseUrl}/invites/${invitation.short_code || invitation.id}`,
-                  )}`}
-                  alt="Invitation QR Code"
-                  width={200}
-                  height={200}
-                  className="mx-auto"
-                />
-              </div>
+              <p className="text-sm text-white/70 text-center mb-4">Share this invitation link with others:</p>
 
-              <p className="text-sm text-white/70 text-center mb-4">
-                Scan this QR code or share these links to quickly respond to the invitation:
-              </p>
-
-              {/* Quick Response Links */}
+              {/* Direct Response Links */}
               <div className="space-y-3 mb-4">
                 <a
-                  href={generateQuickResponseUrl("yes")}
+                  href={generateDirectResponseUrl("yes")}
                   className="block w-full bg-green-500/20 hover:bg-green-500/30 text-green-400 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <CheckCircle size={16} />
                   Accept Invitation
                 </a>
                 <a
-                  href={generateQuickResponseUrl("maybe")}
+                  href={generateDirectResponseUrl("maybe")}
                   className="block w-full bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <HelpCircle size={16} />
                   Maybe Attending
                 </a>
                 <a
-                  href={generateQuickResponseUrl("no")}
+                  href={generateDirectResponseUrl("no")}
                   className="block w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <XCircle size={16} />
@@ -560,6 +548,8 @@ export default function InviteResponsePage({
                       await navigator.clipboard.writeText(
                         `${baseUrl}/invites/${invitation.short_code || invitation.id}`,
                       )
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 2000)
                       toast({
                         title: "Link Copied",
                         description: "Invitation link has been copied to clipboard.",
@@ -570,21 +560,8 @@ export default function InviteResponsePage({
                   }}
                   className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                  </svg>
-                  Copy Invitation Link
+                  <Copy size={16} />
+                  {copied ? "Copied!" : "Copy Invitation Link"}
                 </button>
 
                 <button
@@ -613,23 +590,7 @@ export default function InviteResponsePage({
                   }}
                   className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="18" cy="5" r="3"></circle>
-                    <circle cx="6" cy="12" r="3"></circle>
-                    <circle cx="18" cy="19" r="3"></circle>
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                  </svg>
+                  <Share size={16} />
                   Share Invitation
                 </button>
               </div>

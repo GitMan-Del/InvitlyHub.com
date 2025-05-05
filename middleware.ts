@@ -17,6 +17,7 @@ export async function middleware(req: NextRequest) {
     // Public routes that don't require authentication checks
     const isPublicRoute =
       pathname === "/" ||
+      pathname === "/join" ||
       pathname.startsWith("/auth/callback") ||
       pathname.startsWith("/api/") ||
       pathname.includes("favicon") ||
@@ -33,7 +34,7 @@ export async function middleware(req: NextRequest) {
     }
 
     // If the user is not signed in and trying to access a protected route, redirect to sign in
-    if (!session && pathname.startsWith("/dashboard")) {
+    if (!session && (pathname.startsWith("/dashboard") || pathname.startsWith("/events"))) {
       const redirectUrl = new URL("/auth/signin", req.url)
       redirectUrl.searchParams.set("redirect", encodeURIComponent(pathname))
       return NextResponse.redirect(redirectUrl)

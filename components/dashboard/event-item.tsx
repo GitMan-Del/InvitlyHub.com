@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Trash2, MoreVertical } from "lucide-react"
+import { motion } from "framer-motion"
+import { Trash2, MoreVertical, Calendar, MapPin, Users, Share2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { deleteEvent } from "@/app/actions/event-actions"
@@ -23,6 +24,7 @@ export function EventItemComponent({ event, onDeleted }: EventItemProps) {
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showShareOptions, setShowShareOptions] = useState(false)
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -66,9 +68,36 @@ export function EventItemComponent({ event, onDeleted }: EventItemProps) {
     }
   }
 
+  const shareEvent = async () => {
+    const shareUrl = `${window.location.origin}/events/${event.id}`
+    const shareText = `Join my event "${event.title}" on Invitify!`
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: event.title,
+          text: shareText,
+          url: shareUrl,
+        })
+      } else {
+        await navigator.clipboard.writeText(shareUrl)
+        toast({
+          title: "Link copied!",
+          description: "Event link copied to clipboard",
+        })
+      }
+    } catch (error) {
+      console.error("Error sharing:", error)
+    }
+  }
+
   return (
     <>
-      <div className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
+      <motion.div
+        className="bg-white/5 backdrop-blur-sm rounded-lg p-4 flex items-center justify-between hover:bg-white/10 transition-colors duration-200 border border-transparent hover:border-white/10"
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      >
         <div className="flex items-center gap-3">
           <SelectRowCheckbox item={event} />
           <div>
@@ -78,40 +107,67 @@ export function EventItemComponent({ event, onDeleted }: EventItemProps) {
             >
               {event.title}
             </Link>
-            <p className="text-white/70 text-sm">{formatDate(event.event_date)}</p>
+            <div className="flex items-center gap-2 text-white/70 text-sm">
+              <Calendar size={12} />
+              <span>{formatDate(event.event_date)}</span>
+              {event.location && (
+                <>
+                  <span className="mx-1">•</span>
+                  <MapPin size={12} />
+                  <span className="truncate max-w-[150px]">{event.location}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-right">
+          <div className="text-right hidden sm:block">
             <p className="text-white/70 text-xs">Attendees</p>
-            <p className="text-white font-medium">
+            <p className="text-white font-medium flex items-center gap-1">
+              <Users size={12} className="text-[#9855FF]" />
               {isLoading ? <span className="opacity-50">...</span> : stats.attendees}
             </p>
           </div>
-          <div className="text-right">
+          <div className="text-right hidden sm:block">
             <p className="text-white/70 text-xs">Responses</p>
             <p className="text-white font-medium">
               {isLoading ? <span className="opacity-50">...</span> : stats.responses}
             </p>
           </div>
-          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+          <div className="w-2 h-2 rounded-full bg-green-500 hidden sm:block"></div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="p-2 rounded-md hover:bg-white/5">
-              <MoreVertical size={16} className="text-white/70" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/events/${event.id}`}>View Details</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-500 focus:text-red-500" onClick={() => setShowDeleteDialog(true)}>
-                <Trash2 size={16} className="mr-2" />
-                Delete Event
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex gap-2">
+            <button
+              onClick={shareEvent}
+              className="p-2 rounded-md hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+              title="Share Event"
+            >
+              <Share2 size={16} />
+            </button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger className="p-2 rounded-md hover:bg-white/10 text-white/70 hover:text-white transition-colors">
+                <MoreVertical size={16} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-[#0A0A0A] border-white/10 text-white">
+                <DropdownMenuItem
+                  asChild
+                  className="hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white"
+                >
+                  <Link href={`/events/${event.id}`}>View Details</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-red-500 hover:bg-red-500/10 hover:text-red-500 focus:bg-red-500/10 focus:text-red-500"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 size={16} className="mr-2" />
+                  Delete Event
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
       <ConfirmationDialog
         open={showDeleteDialog}

@@ -3,9 +3,8 @@
 import { format } from "date-fns"
 import { Calendar, Clock, MapPin, Share2, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import EnhancedQRCode from "@/components/events/enhanced-qr-code"
 import { respondToInvitation } from "@/app/actions/invitation-actions"
-import { useRef } from "react"
+import InviteCodeShare from "@/components/events/invite-code-share"
 
 interface EventDetailsProps {
   event: any
@@ -30,15 +29,10 @@ export default function EventDetails({
   baseUrl,
   userInvitation,
 }: EventDetailsProps) {
-  const qrCodeRef = useRef<HTMLCanvasElement>(null)
-
   // Format the event date
   const eventDate = new Date(event.event_date)
   const formattedDate = format(eventDate, "EEEE, MMMM d, yyyy")
   const formattedTime = format(eventDate, "h:mm a")
-
-  // Generate simple RSVP URL for the QR code
-  const qrCodeUrl = `${baseUrl}/rsvp/${event.short_code || event.id}`
 
   // Generate invitation URL for sharing
   const invitationUrl = `${baseUrl}/invites/${event.short_code || event.id}`
@@ -47,28 +41,6 @@ export default function EventDetails({
   const copyInvitationLink = () => {
     navigator.clipboard.writeText(invitationUrl)
     alert("Invitation link copied to clipboard!")
-  }
-
-  // Function to download QR code
-  const downloadQRCode = () => {
-    if (!qrCodeRef.current) return
-
-    // Create a safe filename from the event title
-    const safeTitle = event.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()
-    const filename = `event_qr_${safeTitle}.png`
-
-    // Convert canvas to data URL
-    const dataUrl = qrCodeRef.current.toDataURL("image/png")
-
-    // Create download link
-    const link = document.createElement("a")
-    link.href = dataUrl
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-
-    // Clean up
-    document.body.removeChild(link)
   }
 
   return (
@@ -223,27 +195,16 @@ export default function EventDetails({
             )}
           </div>
 
-          {/* QR code and sharing - 1/3 width on desktop */}
+          {/* Sharing panel - 1/3 width on desktop */}
           <div className="space-y-6">
+            {/* Invite code section for event owners */}
+            {isOwner && (
+              <InviteCodeShare eventId={event.id} eventTitle={event.title} initialInviteCode={event.unique_code} />
+            )}
+
             <div className="bg-gray-900 rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Event QR Code</h2>
-              <div className="flex justify-center mb-4">
-                <div className="bg-white p-4 rounded-lg">
-                  {/* Using the simple RSVP URL here */}
-                  <EnhancedQRCode
-                    value={qrCodeUrl}
-                    size={200}
-                    logoUrl="/Logo.png"
-                    logoSize={40}
-                    foregroundColor="#9855FF"
-                    backgroundColor="#FFFFFF"
-                    ref={qrCodeRef}
-                  />
-                </div>
-              </div>
-              <p className="text-sm text-gray-400 text-center mb-4">
-                Scan this QR code to quickly respond to the invitation
-              </p>
+              <h2 className="text-xl font-semibold mb-4">Share Event</h2>
+              <p className="text-sm text-gray-400 mb-4">Share this event with your friends and family:</p>
               <div className="space-y-3">
                 <Button
                   onClick={copyInvitationLink}
@@ -253,8 +214,24 @@ export default function EventDetails({
                   <Share2 className="w-4 h-4 mr-2" />
                   Copy Invitation Link
                 </Button>
-                <Button onClick={downloadQRCode} variant="outline" className="w-full">
-                  Download QR Code
+                <Button
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator
+                        .share({
+                          title: event.title,
+                          text: `Join me at ${event.title}!`,
+                          url: invitationUrl,
+                        })
+                        .catch((err) => console.error("Error sharing:", err))
+                    } else {
+                      copyInvitationLink()
+                    }
+                  }}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Share via...
                 </Button>
               </div>
             </div>
@@ -289,6 +266,13 @@ export default function EventDetails({
             )}
           </div>
         </div>
+        {isOwner && (
+          <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+            <div className="mt-6">
+              <InviteCodeShare eventId={event.id} eventTitle={event.title} initialInviteCode={event.unique_code} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

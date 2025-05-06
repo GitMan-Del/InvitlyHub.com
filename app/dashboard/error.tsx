@@ -15,6 +15,22 @@ export default function DashboardError({
     console.error(error)
   }, [error])
 
+  const handleReset = () => {
+    try {
+      // Check if reset is a function before calling it
+      if (typeof reset === "function") {
+        reset()
+      } else {
+        // If reset is not a function, refresh the page as a fallback
+        window.location.reload()
+      }
+    } catch (e) {
+      console.error("Error resetting:", e)
+      // Fallback to page refresh if reset fails
+      window.location.reload()
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center">
       <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-8 max-w-md">
@@ -23,7 +39,7 @@ export default function DashboardError({
           We encountered an error while loading your dashboard. Please try again later.
         </p>
         <div className="flex gap-4">
-          <button onClick={() => reset()} className="bg-[#9855FF] text-white font-medium py-2 px-4 rounded-lg">
+          <button onClick={handleReset} className="bg-[#9855FF] text-white font-medium py-2 px-4 rounded-lg">
             Try again
           </button>
           <Link href="/" className="bg-white/10 text-white font-medium py-2 px-4 rounded-lg">

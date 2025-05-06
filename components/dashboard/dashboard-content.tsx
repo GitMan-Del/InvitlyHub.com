@@ -31,14 +31,17 @@ import {
   Share2,
   ArrowRight,
   Sparkles,
+  Info,
+  MapPin,
+  MoreVertical,
+  Edit,
 } from "lucide-react"
-import { CircularProgressbar, buildStyles } from "react-circular-progressbar"
 import "react-circular-progressbar/dist/styles.css"
 import type { Profile, Event, ActivityLog } from "@/lib/supabase/types"
 import { useAnalyticsData } from "@/hooks/use-analytics-data"
 import { useToast } from "@/components/ui/use-toast"
 import { clearAllCache } from "@/lib/utils/cache-utils"
-import { EventItemComponent } from "@/components/dashboard/event-item"
+import { EventDetailsPanel } from "@/components/dashboard/event-details-panel"
 import {
   TableSelectionProvider,
   useTableSelection,
@@ -49,6 +52,10 @@ import { Button } from "@/components/ui/button"
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"
 import { deleteMultipleEvents } from "@/app/actions/event-actions"
 import EventForm from "@/components/events/event-form"
+import { useEventStats } from "@/hooks/use-event-stats"
+import { deleteEvent } from "@/app/actions/event-actions"
+import { SelectRowCheckbox } from "@/components/ui/select-row-checkbox"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 type DashboardContentProps = {
   user: User
@@ -87,15 +94,40 @@ export default function DashboardContent({
   const [showJoinEventForm, setShowJoinEventForm] = useState(false)
   const [joinCode, setJoinCode] = useState("")
   const [isJoining, setIsJoining] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [showEditEventForm, setShowEditEventForm] = useState(false)
   const { toast } = useToast()
 
   // Use the analytics data hook
   const {
-    analyticsData,
+    analyticsData: hookAnalyticsData,
     isLoading: isLoadingAnalytics,
     isRefetching: isRefetchingAnalytics,
     refetch: refetchAnalytics,
+    error: analyticsError,
   } = useAnalyticsData(user.id)
+
+  // Use the passed analyticsData as a fallback if the hook fails
+  const analyticsData = analyticsError
+    ? {
+        views: 0,
+        responses: 0,
+        engagement: 0,
+        growth: 0,
+        changeRates: {
+          views: "+0%",
+          responses: "+0%",
+          engagement: "+0%",
+          growth: "+0%",
+        },
+        changeTypes: {
+          views: "positive" as const,
+          responses: "positive" as const,
+          engagement: "positive" as const,
+          growth: "positive" as const,
+        },
+      }
+    : hookAnalyticsData
 
   // Format user display name
   const displayName = profile?.full_name || user.email?.split("@")[0] || "User"
@@ -125,20 +157,30 @@ export default function DashboardContent({
   const refreshAllData = async () => {
     setRefreshing(true)
 
-    // Clear all cache
-    clearAllCache()
+    try {
+      // Clear all cache
+      clearAllCache()
 
-    // Refetch analytics
-    await refetchAnalytics()
+      // Refetch analytics
+      await refetchAnalytics()
 
-    // Wait a bit to ensure all refreshes have started
-    setTimeout(() => {
+      // Wait a bit to ensure all refreshes have started
+      setTimeout(() => {
+        setRefreshing(false)
+        toast({
+          title: "Dashboard refreshed",
+          description: "All data has been updated",
+        })
+      }, 1000)
+    } catch (error) {
+      console.error("Error refreshing data:", error)
       setRefreshing(false)
       toast({
-        title: "Dashboard refreshed",
-        description: "All data has been updated",
+        variant: "destructive",
+        title: "Refresh failed",
+        description: "There was a problem refreshing your data. Please try again.",
       })
-    }, 1000)
+    }
   }
 
   const handleJoinEvent = async () => {
@@ -188,6 +230,17 @@ export default function DashboardContent({
     } finally {
       setIsJoining(false)
     }
+  }
+
+  // Handle event selection
+  const handleEventSelect = (event: Event) => {
+    setSelectedEvent(event)
+  }
+
+  // Handle event edit
+  const handleEventEdit = (event: Event) => {
+    setSelectedEvent(event)
+    setShowEditEventForm(true)
   }
 
   // Close dropdowns when clicking outside
@@ -494,329 +547,295 @@ export default function DashboardContent({
         {/* Dashboard Content */}
         <main className="flex-1 p-4 md:p-6 overflow-auto bg-black">
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Welcome Section with Create/Join Event */}
-            <section className="bg-gradient-to-r from-[#1A0B2E] to-[#2A1659] rounded-xl p-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#9855FF] rounded-full blur-[120px] opacity-30"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#9855FF] rounded-full blur-[120px] opacity-20"></div>
+            {/* Main Content Grid - Adjusted for Event Details Panel */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column - Main Dashboard Content */}
+              <div className={`${selectedEvent ? "lg:col-span-2" : "lg:col-span-3"} space-y-6`}>
+                {/* Welcome Section with Create/Join Event */}
+                <section className="bg-gradient-to-r from-[#1A0B2E] to-[#2A1659] rounded-xl p-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#9855FF] rounded-full blur-[120px] opacity-30"></div>
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#9855FF] rounded-full blur-[120px] opacity-20"></div>
 
-              <div className="relative z-10">
-                <h2 className="text-2xl font-bold text-white mb-2">Welcome back, {displayName}!</h2>
-                <p className="text-white/70 mb-6">Here's what's happening with your events today.</p>
+                  <div className="relative z-10">
+                    <h2 className="text-2xl font-bold text-white mb-2">Welcome back, {displayName}!</h2>
+                    <p className="text-white/70 mb-6">Here's what's happening with your events today.</p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10 hover:border-white/20 transition-colors duration-300">
-                    <div className="flex items-start mb-4">
-                      <div className="p-3 bg-gradient-to-br from-[#9855FF] to-[#622A9A] rounded-lg mr-4">
-                        <Plus className="h-6 w-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">Create Event</h3>
-                        <p className="text-white/60 text-sm">Set up a new event and invite guests</p>
-                      </div>
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setShowCreateEventForm(true)}
-                      className="w-full bg-gradient-to-r from-[#9855FF] to-[#622A9A] text-white font-medium py-2.5 px-4 rounded-lg hover:opacity-90 transition-all duration-200 flex items-center justify-center"
-                    >
-                      <span className="flex items-center">
-                        <Plus className="mr-2 h-5 w-5" />
-                        Create New Event
-                      </span>
-                    </motion.button>
-                  </div>
-
-                  <div className="bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10 hover:border-white/20 transition-colors duration-300">
-                    <div className="flex items-start mb-4">
-                      <div className="p-3 bg-gradient-to-br from-[#9855FF] to-[#622A9A] rounded-lg mr-4">
-                        <Share2 className="h-6 w-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">Join Event</h3>
-                        <p className="text-white/60 text-sm">Join an event with an invite code</p>
-                      </div>
-                    </div>
-                    {showJoinEventForm ? (
-                      <div className="space-y-3">
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={joinCode}
-                            onChange={(e) => setJoinCode(e.target.value)}
-                            placeholder="Enter invite code"
-                            className="w-full bg-black/50 border border-white/10 text-white rounded-lg px-4 py-2.5 focus:ring-[#9855FF] focus:border-[#9855FF] outline-none"
-                          />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10 hover:border-white/20 transition-colors duration-300">
+                        <div className="flex items-start mb-4">
+                          <div className="p-3 bg-gradient-to-br from-[#9855FF] to-[#622A9A] rounded-lg mr-4">
+                            <Plus className="h-6 w-6 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-white">Create Event</h3>
+                            <p className="text-white/60 text-sm">Set up a new event and invite guests</p>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => setShowCreateEventForm(true)}
+                          className="w-full bg-gradient-to-r from-[#9855FF] to-[#622A9A] text-white font-medium py-2.5 px-4 rounded-lg hover:opacity-90 transition-all duration-200 flex items-center justify-center"
+                        >
+                          <span className="flex items-center">
+                            <Plus className="mr-2 h-5 w-5" />
+                            Create New Event
+                          </span>
+                        </motion.button>
+                      </div>
+
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10 hover:border-white/20 transition-colors duration-300">
+                        <div className="flex items-start mb-4">
+                          <div className="p-3 bg-gradient-to-br from-[#9855FF] to-[#622A9A] rounded-lg mr-4">
+                            <Share2 className="h-6 w-6 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-white">Join Event</h3>
+                            <p className="text-white/60 text-sm">Join an event with an invite code</p>
+                          </div>
+                        </div>
+                        {showJoinEventForm ? (
+                          <div className="space-y-3">
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={joinCode}
+                                onChange={(e) => setJoinCode(e.target.value)}
+                                placeholder="Enter invite code"
+                                className="w-full bg-black/50 border border-white/10 text-white rounded-lg px-4 py-2.5 focus:ring-[#9855FF] focus:border-[#9855FF] outline-none"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={handleJoinEvent}
+                                disabled={isJoining || !joinCode.trim()}
+                                className="flex-1 bg-gradient-to-r from-[#9855FF] to-[#622A9A] text-white font-medium py-2 px-4 rounded-lg hover:opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                              >
+                                {isJoining ? (
+                                  <span className="flex items-center justify-center">
+                                    <svg
+                                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                      ></circle>
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                      ></path>
+                                    </svg>
+                                    Joining...
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center">Join Event</span>
+                                )}
+                              </motion.button>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setShowJoinEventForm(false)
+                                  setJoinCode("")
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
                           <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={handleJoinEvent}
-                            disabled={isJoining || !joinCode.trim()}
-                            className="flex-1 bg-gradient-to-r from-[#9855FF] to-[#622A9A] text-white font-medium py-2 px-4 rounded-lg hover:opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                            onClick={() => setShowJoinEventForm(true)}
+                            className="w-full bg-white/10 text-white font-medium py-2.5 px-4 rounded-lg hover:bg-white/15 transition-all duration-200 flex items-center justify-center"
                           >
-                            {isJoining ? (
-                              <span className="flex items-center justify-center">
-                                <svg
-                                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                  ></circle>
-                                  <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                  ></path>
-                                </svg>
-                                Joining...
-                              </span>
-                            ) : (
-                              <span className="flex items-center">Join Event</span>
-                            )}
+                            <span className="flex items-center">
+                              <ArrowRight className="mr-2 h-5 w-5" />
+                              Enter Invite Code
+                            </span>
                           </motion.button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setShowJoinEventForm(false)
-                              setJoinCode("")
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
+                        )}
                       </div>
-                    ) : (
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setShowJoinEventForm(true)}
-                        className="w-full bg-white/10 text-white font-medium py-2.5 px-4 rounded-lg hover:bg-white/15 transition-all duration-200 flex items-center justify-center"
-                      >
-                        <span className="flex items-center">
-                          <ArrowRight className="mr-2 h-5 w-5" />
-                          Enter Invite Code
-                        </span>
-                      </motion.button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Stats Overview */}
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCardComponent
-                title="Total Views"
-                value={analyticsData.views}
-                icon={<Eye className="w-5 h-5 text-[#9855FF]" />}
-                change={analyticsData.changeRates?.views || "+0%"}
-                changeType={analyticsData.changeTypes?.views || "positive"}
-                isLoading={isLoadingAnalytics || isRefetchingAnalytics}
-              />
-              <StatsCardComponent
-                title="Responses"
-                value={analyticsData.responses}
-                icon={<Mail className="w-5 h-5 text-[#9855FF]" />}
-                change={analyticsData.changeRates?.responses || "+0%"}
-                changeType={analyticsData.changeTypes?.responses || "positive"}
-                isLoading={isLoadingAnalytics || isRefetchingAnalytics}
-              />
-              <StatsCardComponent
-                title="Engagement Rate"
-                value={`${analyticsData.engagement}%`}
-                icon={<TrendingUp className="w-5 h-5 text-[#9855FF]" />}
-                change={analyticsData.changeRates?.engagement || "+0%"}
-                changeType={analyticsData.changeTypes?.engagement || "positive"}
-                isLoading={isLoadingAnalytics || isRefetchingAnalytics}
-              />
-              <StatsCardComponent
-                title="Monthly Growth"
-                value={`${analyticsData.growth}%`}
-                icon={<BarChart3 className="w-5 h-5 text-[#9855FF]" />}
-                change={analyticsData.changeRates?.growth || "+0%"}
-                changeType={analyticsData.changeTypes?.growth || "positive"}
-                isLoading={isLoadingAnalytics || isRefetchingAnalytics}
-              />
-            </section>
-
-            {/* Response Analytics and Monthly Events */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Response Analytics */}
-              <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6 lg:col-span-1 relative overflow-hidden group hover:border-white/20 transition-colors duration-300">
-                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#9855FF] rounded-full blur-[100px] opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Sparkles className="w-5 h-5 mr-2 text-[#9855FF]" />
-                  Response Analytics
-                </h3>
-
-                <div className="flex flex-col items-center">
-                  <div className="w-48 h-48 mb-6 relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-2xl font-bold text-white">{responseStats.yes}%</div>
                     </div>
-                    <CircularProgressbar
-                      value={responseStats.yes}
-                      strokeWidth={10}
-                      styles={buildStyles({
-                        pathColor: "#9855FF",
-                        trailColor: "#333333",
-                        strokeLinecap: "round",
-                      })}
-                    />
                   </div>
+                </section>
 
-                  <div className="w-full grid grid-cols-3 gap-4 text-center">
-                    <div className="bg-white/5 rounded-lg p-3 backdrop-blur-sm">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <CheckCircle size={16} className="text-green-500" />
-                        <span className="text-white/80 text-sm">Yes</span>
+                {/* Stats Overview */}
+                <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatsCardComponent
+                    title="Total Views"
+                    value={analyticsData.views}
+                    icon={<Eye className="w-5 h-5 text-[#9855FF]" />}
+                    change={analyticsData.changeRates?.views || "+0%"}
+                    changeType={analyticsData.changeTypes?.views || "positive"}
+                    isLoading={isLoadingAnalytics || isRefetchingAnalytics}
+                  />
+                  <StatsCardComponent
+                    title="Responses"
+                    value={analyticsData.responses}
+                    icon={<Mail className="w-5 h-5 text-[#9855FF]" />}
+                    change={analyticsData.changeRates?.responses || "+0%"}
+                    changeType={analyticsData.changeTypes?.responses || "positive"}
+                    isLoading={isLoadingAnalytics || isRefetchingAnalytics}
+                  />
+                  <StatsCardComponent
+                    title="Engagement Rate"
+                    value={`${analyticsData.engagement}%`}
+                    icon={<TrendingUp className="w-5 h-5 text-[#9855FF]" />}
+                    change={analyticsData.changeRates?.engagement || "+0%"}
+                    changeType={analyticsData.changeTypes?.engagement || "positive"}
+                    isLoading={isLoadingAnalytics || isRefetchingAnalytics}
+                  />
+                  <StatsCardComponent
+                    title="Monthly Growth"
+                    value={`${analyticsData.growth}%`}
+                    icon={<BarChart3 className="w-5 h-5 text-[#9855FF]" />}
+                    change={analyticsData.changeRates?.growth || "+0%"}
+                    changeType={analyticsData.changeTypes?.growth || "positive"}
+                    isLoading={isLoadingAnalytics || isRefetchingAnalytics}
+                  />
+                </section>
+
+                {/* Events Section */}
+                <section className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6 relative overflow-hidden group hover:border-white/20 transition-colors duration-300">
+                  <div className="absolute -top-10 -left-10 w-40 h-40 bg-[#9855FF] rounded-full blur-[100px] opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
+                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    <Sparkles className="w-5 h-5 mr-2 text-[#9855FF]" />
+                    Your Events
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white/70 text-sm">Total Events</span>
+                        <CalendarDays size={18} className="text-[#9855FF]" />
                       </div>
-                      <p className="text-lg font-bold text-white">{responseStats.yes}%</p>
+                      <p className="text-2xl font-bold text-white">{events.total}</p>
                     </div>
 
-                    <div className="bg-white/5 rounded-lg p-3 backdrop-blur-sm">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <XCircle size={16} className="text-red-500" />
-                        <span className="text-white/80 text-sm">No</span>
+                    <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white/70 text-sm">Upcoming</span>
+                        <Calendar size={18} className="text-[#9855FF]" />
                       </div>
-                      <p className="text-lg font-bold text-white">{responseStats.no}%</p>
+                      <p className="text-2xl font-bold text-white">{events.upcoming.length}</p>
                     </div>
 
-                    <div className="bg-white/5 rounded-lg p-3 backdrop-blur-sm">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Clock size={16} className="text-yellow-500" />
-                        <span className="text-white/80 text-sm">Pending</span>
+                    <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white/70 text-sm">Past</span>
+                        <Clock size={18} className="text-[#9855FF]" />
                       </div>
-                      <p className="text-lg font-bold text-white">{responseStats.pending}</p>
+                      <p className="text-2xl font-bold text-white">{events.past.length}</p>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Monthly Events */}
-              <div className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6 lg:col-span-2 relative overflow-hidden group hover:border-white/20 transition-colors duration-300">
-                <div className="absolute -top-10 -left-10 w-40 h-40 bg-[#9855FF] rounded-full blur-[100px] opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Sparkles className="w-5 h-5 mr-2 text-[#9855FF]" />
-                  Events This Month
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white/70 text-sm">Total Events</span>
-                      <CalendarDays size={18} className="text-[#9855FF]" />
-                    </div>
-                    <p className="text-2xl font-bold text-white">{events.total}</p>
-                  </div>
-
-                  <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white/70 text-sm">Upcoming</span>
-                      <Calendar size={18} className="text-[#9855FF]" />
-                    </div>
-                    <p className="text-2xl font-bold text-white">{events.upcoming.length}</p>
-                  </div>
-
-                  <div className="bg-white/5 rounded-lg p-4 backdrop-blur-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white/70 text-sm">Past</span>
-                      <Clock size={18} className="text-[#9855FF]" />
-                    </div>
-                    <p className="text-2xl font-bold text-white">{events.past.length}</p>
-                  </div>
-                </div>
-
-                {/* Event List with Selection */}
-                <TableSelectionProvider>
-                  <EventsTable
-                    events={events.upcoming.slice(0, 3)}
-                    onDeleteMultiple={async (selectedEvents) => {
-                      setIsDeleting(true)
-                      try {
-                        const result = await deleteMultipleEvents(selectedEvents.map((e) => e.id))
-                        if (result.success) {
-                          toast({
-                            title: "Events deleted",
-                            description: result.message,
-                          })
-                          refreshAllData()
-                        } else {
+                  {/* Event List with Selection */}
+                  <TableSelectionProvider>
+                    <EventsTable
+                      events={events.upcoming}
+                      onSelectEvent={handleEventSelect}
+                      onEditEvent={handleEventEdit}
+                      onDeleteMultiple={async (selectedEvents) => {
+                        setIsDeleting(true)
+                        try {
+                          const result = await deleteMultipleEvents(selectedEvents.map((e) => e.id))
+                          if (result.success) {
+                            toast({
+                              title: "Events deleted",
+                              description: result.message,
+                            })
+                            refreshAllData()
+                          } else {
+                            toast({
+                              variant: "destructive",
+                              title: "Error",
+                              description: result.error,
+                            })
+                          }
+                        } catch (error) {
                           toast({
                             variant: "destructive",
                             title: "Error",
-                            description: result.error,
+                            description: "An unexpected error occurred",
                           })
+                        } finally {
+                          setIsDeleting(false)
+                          setShowDeleteDialog(false)
                         }
-                      } catch (error) {
-                        toast({
-                          variant: "destructive",
-                          title: "Error",
-                          description: "An unexpected error occurred",
-                        })
-                      } finally {
-                        setIsDeleting(false)
-                        setShowDeleteDialog(false)
-                      }
-                    }}
+                      }}
+                    />
+                  </TableSelectionProvider>
+                </section>
+
+                {/* Recent Activity */}
+                <section className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6 relative overflow-hidden group hover:border-white/20 transition-colors duration-300">
+                  <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#9855FF] rounded-full blur-[100px] opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-white flex items-center">
+                      <Sparkles className="w-5 h-5 mr-2 text-[#9855FF]" />
+                      Recent Activity
+                    </h3>
+                    <button className="text-[#9855FF] text-sm hover:underline transition-all duration-200">
+                      View All
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {recentActivity.length > 0 ? (
+                      recentActivity.map((activity) => {
+                        // Determine icon based on action
+                        let icon
+                        if (activity.action.includes("created")) {
+                          icon = <Plus size={16} className="text-[#9855FF]" />
+                        } else if (activity.action.includes("confirmed")) {
+                          icon = <CheckCircle size={16} className="text-green-500" />
+                        } else if (activity.action.includes("declined")) {
+                          icon = <XCircle size={16} className="text-red-500" />
+                        } else if (activity.action.includes("viewed")) {
+                          icon = <Eye size={16} className="text-blue-500" />
+                        } else {
+                          icon = <Mail size={16} className="text-[#9855FF]" />
+                        }
+
+                        return (
+                          <ActivityItemComponent
+                            key={activity.id}
+                            icon={icon}
+                            title={activity.action.replace("_", " ")}
+                            event={activity.event_id ? (activity as any).events?.title || "Event" : ""}
+                            time={formatActivityTime(activity.created_at)}
+                          />
+                        )
+                      })
+                    ) : (
+                      <p className="text-white/50 text-center py-4">No recent activity</p>
+                    )}
+                  </div>
+                </section>
+              </div>
+
+              {/* Right Column - Event Details Panel */}
+              {selectedEvent && (
+                <div className="lg:col-span-1 h-full">
+                  <EventDetailsPanel
+                    event={selectedEvent}
+                    onClose={() => setSelectedEvent(null)}
+                    onEdit={handleEventEdit}
                   />
-                </TableSelectionProvider>
-              </div>
+                </div>
+              )}
             </div>
-
-            {/* Recent Activity */}
-            <section className="bg-[#0A0A0A] border border-white/10 rounded-xl p-6 relative overflow-hidden group hover:border-white/20 transition-colors duration-300">
-              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#9855FF] rounded-full blur-[100px] opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white flex items-center">
-                  <Sparkles className="w-5 h-5 mr-2 text-[#9855FF]" />
-                  Recent Activity
-                </h3>
-                <button className="text-[#9855FF] text-sm hover:underline transition-all duration-200">View All</button>
-              </div>
-
-              <div className="space-y-4">
-                {recentActivity.length > 0 ? (
-                  recentActivity.map((activity) => {
-                    // Determine icon based on action
-                    let icon
-                    if (activity.action.includes("created")) {
-                      icon = <Plus size={16} className="text-[#9855FF]" />
-                    } else if (activity.action.includes("confirmed")) {
-                      icon = <CheckCircle size={16} className="text-green-500" />
-                    } else if (activity.action.includes("declined")) {
-                      icon = <XCircle size={16} className="text-red-500" />
-                    } else if (activity.action.includes("viewed")) {
-                      icon = <Eye size={16} className="text-blue-500" />
-                    } else {
-                      icon = <Mail size={16} className="text-[#9855FF]" />
-                    }
-
-                    return (
-                      <ActivityItemComponent
-                        key={activity.id}
-                        icon={icon}
-                        title={activity.action.replace("_", " ")}
-                        event={activity.event_id ? (activity as any).events?.title || "Event" : ""}
-                        time={formatActivityTime(activity.created_at)}
-                      />
-                    )
-                  })
-                ) : (
-                  <p className="text-white/50 text-center py-4">No recent activity</p>
-                )}
-              </div>
-            </section>
           </div>
         </main>
       </div>
@@ -857,6 +876,53 @@ export default function DashboardContent({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Edit Event Modal */}
+      <AnimatePresence>
+        {showEditEventForm && selectedEvent && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowEditEventForm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative">
+                <button
+                  onClick={() => setShowEditEventForm(false)}
+                  className="absolute top-4 right-4 text-white/70 hover:text-white z-10"
+                >
+                  <X size={24} />
+                </button>
+                <EventForm
+                  event={selectedEvent}
+                  onSuccess={() => {
+                    setShowEditEventForm(false)
+                    refreshAllData()
+                    // Update the selected event with the latest data
+                    if (selectedEvent) {
+                      const updatedEvent =
+                        events.upcoming.find((e) => e.id === selectedEvent.id) ||
+                        events.past.find((e) => e.id === selectedEvent.id)
+                      if (updatedEvent) {
+                        setSelectedEvent(updatedEvent)
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -864,9 +930,13 @@ export default function DashboardContent({
 // Events Table Component with Row Selection
 function EventsTable({
   events,
+  onSelectEvent,
+  onEditEvent,
   onDeleteMultiple,
 }: {
   events: Event[]
+  onSelectEvent: (event: Event) => void
+  onEditEvent?: (event: Event) => void
   onDeleteMultiple: (selectedEvents: Event[]) => Promise<void>
 }) {
   const { selectedItems, deselectAll } = useTableSelection<Event>()
@@ -914,18 +984,18 @@ function EventsTable({
               <span className="text-white/70 text-sm font-medium">Select All</span>
             </div>
             {events.map((event) => (
-              <EventItemComponent key={event.id} event={event} />
+              <div key={event.id} onClick={() => onSelectEvent(event)} className="cursor-pointer">
+                <CustomEventItem event={event} onEdit={onEditEvent ? () => onEditEvent(event) : undefined} />
+              </div>
             ))}
           </>
         ) : (
           <div className="bg-white/5 rounded-lg p-6 text-center backdrop-blur-sm">
             <p className="text-white/50 mb-4">No upcoming events. Create your first event!</p>
-            <Link href="/events">
-              <Button variant="default" className="bg-gradient-to-r from-[#9855FF] to-[#622A9A]">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Event
-              </Button>
-            </Link>
+            <Button variant="default" className="bg-gradient-to-r from-[#9855FF] to-[#622A9A]">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Event
+            </Button>
           </div>
         )}
       </div>
@@ -943,6 +1013,151 @@ function EventsTable({
         isLoading={isDeleting}
       />
     </div>
+  )
+}
+
+// Custom Event Item Component for Dashboard
+function CustomEventItem({
+  event,
+  onEdit,
+}: {
+  event: Event
+  onEdit?: () => void
+}) {
+  const { stats, isLoading } = useEventStats(event.id)
+  const { toast } = useToast()
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+    }).format(date)
+  }
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      const result = await deleteEvent(event.id)
+
+      if (result.success) {
+        toast({
+          title: "Event deleted",
+          description: result.message,
+        })
+        setShowDeleteDialog(false)
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error,
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An unexpected error occurred",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  return (
+    <>
+      <motion.div
+        className="bg-white/5 backdrop-blur-sm rounded-lg p-4 flex items-center justify-between hover:bg-white/10 transition-colors duration-200 border border-transparent hover:border-white/10"
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      >
+        <div className="flex items-center gap-3">
+          <SelectRowCheckbox item={event} onClick={(e) => e.stopPropagation()} />
+          <div>
+            <div className="font-medium text-white hover:text-[#9855FF] transition-colors">{event.title}</div>
+            <div className="flex items-center gap-2 text-white/70 text-sm">
+              <Calendar size={12} />
+              <span>{formatDate(event.event_date)}</span>
+              {event.location && (
+                <>
+                  <span className="mx-1">•</span>
+                  <MapPin size={12} />
+                  <span className="truncate max-w-[150px]">{event.location}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right hidden sm:block">
+            <p className="text-white/70 text-xs">Attendees</p>
+            <p className="text-white font-medium flex items-center gap-1">
+              <Users size={12} className="text-[#9855FF]" />
+              {isLoading ? <span className="opacity-50">...</span> : stats.attendees}
+            </p>
+          </div>
+          <div className="text-right hidden sm:block">
+            <p className="text-white/70 text-xs">Responses</p>
+            <p className="text-white font-medium">
+              {isLoading ? <span className="opacity-50">...</span> : stats.responses}
+            </p>
+          </div>
+          <div className="w-2 h-2 rounded-full bg-green-500 hidden sm:block"></div>
+
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="p-2 rounded-md hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+              title="View Details"
+            >
+              <Info size={16} />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger className="p-2 rounded-md hover:bg-white/10 text-white/70 hover:text-white transition-colors">
+                <MoreVertical size={16} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-[#0A0A0A] border-white/10 text-white">
+                {onEdit && (
+                  <DropdownMenuItem
+                    onClick={onEdit}
+                    className="hover:bg-white/5 hover:text-white focus:bg-white/5 focus:text-white"
+                  >
+                    <Edit size={16} className="mr-2" />
+                    Edit Event
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="text-red-500 hover:bg-red-500/10 hover:text-red-500 focus:bg-red-500/10 focus:text-red-500"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 size={16} className="mr-2" />
+                  Delete Event
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </motion.div>
+
+      <ConfirmationDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Event"
+        description={`Are you sure you want to delete "${event.title}"? This action cannot be undone and will remove all invitations and data associated with this event.`}
+        confirmText="Delete Event"
+        variant="destructive"
+        onConfirm={handleDelete}
+        isLoading={isDeleting}
+      />
+    </>
   )
 }
 

@@ -47,6 +47,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if the event already has an invite code
+    if (event.unique_code) {
+      return NextResponse.json(
+        {
+          inviteCode: event.unique_code,
+          message: "This event already has an invite code",
+        },
+        { status: 200 },
+      )
+    }
+
     // Generate a unique invite code
     let inviteCode
     let isUnique = false

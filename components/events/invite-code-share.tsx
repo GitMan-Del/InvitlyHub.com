@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
 import { Copy, Share2 } from "lucide-react"
+import EnhancedQRCode from "@/components/events/enhanced-qr-code"
 
 interface InviteCodeShareProps {
   eventId: string
@@ -15,6 +16,7 @@ export default function InviteCodeShare({ eventId, inviteCode: initialInviteCode
   const [inviteCode, setInviteCode] = useState(initialInviteCode || "")
   const [isGenerating, setIsGenerating] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const [showQR, setShowQR] = useState(false)
 
   const generateInviteCode = async () => {
     setIsGenerating(true)
@@ -33,7 +35,7 @@ export default function InviteCodeShare({ eventId, inviteCode: initialInviteCode
         setInviteCode(data.inviteCode)
         toast({
           title: "Success!",
-          description: "Invite code generated successfully",
+          description: "Invite code generated successfully. This code is permanent and cannot be changed.",
         })
       } else {
         toast({
@@ -109,6 +111,10 @@ export default function InviteCodeShare({ eventId, inviteCode: initialInviteCode
     }
   }
 
+  const toggleQRCode = () => {
+    setShowQR(!showQR)
+  }
+
   return (
     <div className="bg-white p-4 rounded-lg shadow">
       <h3 className="text-lg font-medium mb-4">Invite Code</h3>
@@ -126,16 +132,31 @@ export default function InviteCodeShare({ eventId, inviteCode: initialInviteCode
                 Share
               </Button>
             </div>
-            <p className="text-sm text-gray-500">Share this code with others to let them join your event.</p>
+            <p className="text-sm text-gray-500">
+              Share this code with others to let them join your event. This code is permanent and cannot be changed.
+            </p>
+
             <div className="pt-2">
-              <Button variant="outline" size="sm" onClick={generateInviteCode} disabled={isGenerating}>
-                {isGenerating ? "Generating..." : "Generate New Code"}
+              <Button variant="outline" size="sm" onClick={toggleQRCode}>
+                {showQR ? "Hide QR Code" : "Show QR Code"}
               </Button>
             </div>
+
+            {showQR && (
+              <div className="mt-4">
+                <EnhancedQRCode
+                  value={`${window.location.origin}/join?code=${inviteCode}`}
+                  title="Event Invite"
+                  size={200}
+                />
+              </div>
+            )}
           </>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-gray-500">Generate an invite code to allow others to join this event.</p>
+            <p className="text-sm text-gray-500">
+              Generate an invite code to allow others to join this event. Once generated, the code cannot be changed.
+            </p>
             <Button onClick={generateInviteCode} disabled={isGenerating}>
               {isGenerating ? "Generating..." : "Generate Invite Code"}
             </Button>

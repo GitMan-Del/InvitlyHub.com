@@ -78,47 +78,77 @@ export function useAnalyticsData(userId: string, options = { cacheTime: 15 * 60 
       const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString()
 
       // Get view counts from activity logs (assuming "viewed_event" action)
-      const { data: currentViews } = await supabase
+      const { data: currentViews, error: currentViewsError } = await supabase
         .from("activity_logs")
         .select("id")
         .eq("action", "viewed_event")
         .gte("created_at", currentMonthStart)
         .lte("created_at", currentMonthEnd)
 
-      const { data: prevViews } = await supabase
+      if (currentViewsError) {
+        console.error("Error fetching current views:", currentViewsError)
+        throw currentViewsError
+      }
+
+      const { data: prevViews, error: prevViewsError } = await supabase
         .from("activity_logs")
         .select("id")
         .eq("action", "viewed_event")
         .gte("created_at", prevMonthStart)
         .lte("created_at", prevMonthEnd)
 
+      if (prevViewsError) {
+        console.error("Error fetching previous views:", prevViewsError)
+        throw prevViewsError
+      }
+
       // Get response counts
-      const { data: currentResponses } = await supabase
+      const { data: currentResponses, error: currentResponsesError } = await supabase
         .from("invitations")
         .select("id")
         .not("status", "eq", "pending")
         .gte("updated_at", currentMonthStart)
         .lte("updated_at", currentMonthEnd)
 
-      const { data: prevResponses } = await supabase
+      if (currentResponsesError) {
+        console.error("Error fetching current responses:", currentResponsesError)
+        throw currentResponsesError
+      }
+
+      const { data: prevResponses, error: prevResponsesError } = await supabase
         .from("invitations")
         .select("id")
         .not("status", "eq", "pending")
         .gte("updated_at", prevMonthStart)
         .lte("updated_at", prevMonthEnd)
 
+      if (prevResponsesError) {
+        console.error("Error fetching previous responses:", prevResponsesError)
+        throw prevResponsesError
+      }
+
       // Get total invitations for engagement calculation
-      const { data: currentInvitations } = await supabase
+      const { data: currentInvitations, error: currentInvitationsError } = await supabase
         .from("invitations")
         .select("id")
         .gte("created_at", currentMonthStart)
         .lte("created_at", currentMonthEnd)
 
-      const { data: prevInvitations } = await supabase
+      if (currentInvitationsError) {
+        console.error("Error fetching current invitations:", currentInvitationsError)
+        throw currentInvitationsError
+      }
+
+      const { data: prevInvitations, error: prevInvitationsError } = await supabase
         .from("invitations")
         .select("id")
         .gte("created_at", prevMonthStart)
         .lte("created_at", prevMonthEnd)
+
+      if (prevInvitationsError) {
+        console.error("Error fetching previous invitations:", prevInvitationsError)
+        throw prevInvitationsError
+      }
 
       // Calculate current values
       const viewsCount = currentViews?.length || 0
@@ -136,17 +166,27 @@ export function useAnalyticsData(userId: string, options = { cacheTime: 15 * 60 
         prevInvitationsCount > 0 ? Math.round((prevResponsesCount / prevInvitationsCount) * 100) : 0
 
       // Calculate growth (new events this month)
-      const { data: currentEvents } = await supabase
+      const { data: currentEvents, error: currentEventsError } = await supabase
         .from("events")
         .select("id")
         .gte("created_at", currentMonthStart)
         .lte("created_at", currentMonthEnd)
 
-      const { data: prevEvents } = await supabase
+      if (currentEventsError) {
+        console.error("Error fetching current events:", currentEventsError)
+        throw currentEventsError
+      }
+
+      const { data: prevEvents, error: prevEventsError } = await supabase
         .from("events")
         .select("id")
         .gte("created_at", prevMonthStart)
         .lte("created_at", prevMonthEnd)
+
+      if (prevEventsError) {
+        console.error("Error fetching previous events:", prevEventsError)
+        throw prevEventsError
+      }
 
       const eventsCount = currentEvents?.length || 0
       const prevEventsCount = prevEvents?.length || 0
@@ -199,9 +239,32 @@ export function useAnalyticsData(userId: string, options = { cacheTime: 15 * 60 
 
       setAnalyticsData(newAnalyticsData)
       setCachedData(cacheKey, newAnalyticsData, cacheTime)
+      setError(null)
     } catch (error) {
       console.error("Error fetching analytics data:", error)
       setError(error)
+
+      // Set fallback data
+      const fallbackData: AnalyticsData = {
+        views: 0,
+        responses: 0,
+        engagement: 0,
+        growth: 0,
+        changeRates: {
+          views: "+0.0%",
+          responses: "+0.0%",
+          engagement: "+0.0%",
+          growth: "+0.0%",
+        },
+        changeTypes: {
+          views: "positive",
+          responses: "positive",
+          engagement: "positive",
+          growth: "positive",
+        },
+      }
+
+      setAnalyticsData(fallbackData)
     } finally {
       setIsLoading(false)
       setIsRefetching(false)

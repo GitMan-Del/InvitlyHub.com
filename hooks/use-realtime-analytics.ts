@@ -3,8 +3,26 @@
 import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRealtimeSubscription } from "./use-realtime-subscription"
-import type { AnalyticsData } from "./use-analytics-data"
 import { getCachedData, setCachedData } from "@/lib/utils/cache-utils"
+
+export type AnalyticsData = {
+  views: number
+  responses: number
+  engagement: number
+  growth: number
+  changeRates?: {
+    views: string
+    responses: string
+    engagement: string
+    growth: string
+  }
+  changeTypes?: {
+    views: "positive" | "negative"
+    responses: "positive" | "negative"
+    engagement: "positive" | "negative"
+    growth: "positive" | "negative"
+  }
+}
 
 export function useRealtimeAnalytics(userId: string) {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
@@ -26,12 +44,13 @@ export function useRealtimeAnalytics(userId: string) {
     },
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefetching, setIsRefetching] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
   // Function to fetch analytics data
   const fetchAnalyticsData = useCallback(async () => {
     try {
-      setIsLoading(true)
+      setIsRefetching(true)
       const supabase = createClient()
 
       // Get current month's data
@@ -204,6 +223,7 @@ export function useRealtimeAnalytics(userId: string) {
       setError(err instanceof Error ? err : new Error(String(err)))
     } finally {
       setIsLoading(false)
+      setIsRefetching(false)
     }
   }, [userId])
 
@@ -214,6 +234,8 @@ export function useRealtimeAnalytics(userId: string) {
     if (cachedData) {
       setAnalyticsData(cachedData)
       setIsLoading(false)
+      // Still fetch fresh data in the background
+      fetchAnalyticsData()
     } else {
       fetchAnalyticsData()
     }
@@ -228,5 +250,5 @@ export function useRealtimeAnalytics(userId: string) {
 
   useRealtimeSubscription({ table: "events", filter: "user_id", filterValue: userId }, () => fetchAnalyticsData())
 
-  return { analyticsData, isLoading, error, refetch: fetchAnalyticsData }
+  return { analyticsData, isLoading, isRefetching, error, refetch: fetchAnalyticsData }
 }

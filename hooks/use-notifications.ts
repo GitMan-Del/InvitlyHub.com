@@ -92,20 +92,30 @@ export function useNotifications(userId: string) {
 
   // Set up real-time subscription
   useRealtimeSubscription({ table: "notifications", filter: "user_id", filterValue: userId }, (payload) => {
-    if (payload.new && Object.keys(payload.new).length > 0) {
+    if (payload.eventType === "INSERT") {
       // Handle new notification
       const newNotification = payload.new as Notification
       setNotifications((prev) => [newNotification, ...prev])
       if (!newNotification.read) {
         setUnreadCount((prev) => prev + 1)
       }
-    } else if (payload.old && Object.keys(payload.old).length > 0) {
+    } else if (payload.eventType === "DELETE") {
       // Handle deleted notification
       const oldNotification = payload.old as Notification
       setNotifications((prev) => prev.filter((n) => n.id !== oldNotification.id))
       if (!oldNotification.read) {
         setUnreadCount((prev) => Math.max(0, prev - 1))
       }
+    } else if (payload.eventType === "UPDATE") {
+      // Handle updated notification
+      const updatedNotification = payload.new as Notification
+      setNotifications((prev) => prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n)))
+
+      // Recalculate unread count
+      setNotifications((current) => {
+        setUnreadCount(current.filter((n) => !n.read).length)
+        return current
+      })
     }
   })
 

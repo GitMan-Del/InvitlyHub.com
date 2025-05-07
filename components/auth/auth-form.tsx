@@ -2,11 +2,11 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, handleAuthError } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 
 type AuthFormProps = {
@@ -16,6 +16,7 @@ type AuthFormProps = {
 
 export default function AuthForm({ type, redirectUrl }: AuthFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -24,6 +25,19 @@ export default function AuthForm({ type, redirectUrl }: AuthFormProps) {
   const [fullName, setFullName] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Check for error parameter in URL
+  useEffect(() => {
+    const errorMessage = searchParams.get("error")
+    if (errorMessage) {
+      setError(errorMessage)
+      toast({
+        variant: "destructive",
+        title: "Authentication error",
+        description: errorMessage,
+      })
+    }
+  }, [searchParams, toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,11 +93,12 @@ export default function AuthForm({ type, redirectUrl }: AuthFormProps) {
         router.refresh()
       }
     } catch (error: any) {
-      setError(error.message || "An unexpected error occurred")
+      const errorMessage = handleAuthError(error)
+      setError(errorMessage)
       toast({
         variant: "destructive",
         title: "Authentication error",
-        description: error.message || "An unexpected error occurred",
+        description: errorMessage,
       })
     } finally {
       setLoading(false)

@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export interface Database {
   public: {
@@ -43,7 +37,7 @@ export interface Database {
             columns: ["id"]
             referencedRelation: "users"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       events: {
@@ -86,7 +80,7 @@ export interface Database {
             columns: ["user_id"]
             referencedRelation: "users"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       invitations: {
@@ -126,7 +120,8 @@ export interface Database {
             columns: ["event_id"]
             referencedRelation: "events"
             referencedColumns: ["id"]
-          }
+            
+          },
         ]
       }
       activity_logs: {
@@ -166,7 +161,7 @@ export interface Database {
             columns: ["event_id"]
             referencedRelation: "events"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
     }

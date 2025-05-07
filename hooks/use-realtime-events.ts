@@ -1,76 +1,90 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { useRealtimeSubscription } from "./use-realtime-subscription"
+import { handleSpecificAuthError } from "@/lib/utils/error-handler"
 import type { Event } from "@/lib/supabase/types"
 
 export function useRealtimeEvents(userId: string) {
-  const [events, setEvents] = useState<{
-    upcoming: Event[]
-    past: Event[]
-    total: number
-  }>({
-    upcoming: [],
-    past: [],
-    total: 0,
-  })
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([])
+  const [pastEvents, setPastEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const supabase = createClient()
 
-  // Function to fetch events data
-  const fetchEvents = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const supabase = createClient()
-      const now = new Date().toISOString()
-
-      // Run parallel queries for better performance
-      const [upcomingResult, pastResult] = await Promise.all([
-        // Get upcoming events
-        supabase
-          .from("events")
-          .select("*")
-          .eq("user_id", userId)
-          .gte("event_date", now)
-          .order("event_date", { ascending: true }),
-
-        // Get past events
-        supabase
-          .from("events")
-          .select("*")
-          .eq("user_id", userId)
-          .lt("event_date", now)
-          .order("event_date", { ascending: false }),
-      ])
-
-      if (upcomingResult.error) throw upcomingResult.error
-      if (pastResult.error) throw pastResult.error
-
-      const upcomingEvents = upcomingResult.data || []
-      const pastEvents = pastResult.data || []
-
-      setEvents({
-        upcoming: upcomingEvents,
-        past: pastEvents,
-        total: upcomingEvents.length + pastEvents.length,
-      })
-      setError(null)
-    } catch (err) {
-      console.error("Error in useRealtimeEvents:", err)
-      setError(err instanceof Error ? err : new Error(String(err)))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [userId])
-
-  // Initial data fetch
   useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setIsLoading(true)
+
+        // Get current date in ISO format
+        const now = new Date().toISOString()
+
+        // Fetch upcoming events
+        const { data: upcoming, error: upcomingError } = await supabase
+          .from("events")
+          .select("*")
+          .or(`owner_id.eq.${userId},invitations.user_id.eq.${userId}`)
+          .gte("date", now)
+          .order("date", { ascending: true })
+
+        if (upcomingError) throw upcomingError
+
+        // Fetch past events
+        const { data: past, error: pastError } = await supabase
+          .from("events")
+          .select("*")
+          .or(`owner_id.eq.${userId},invitations.user_id.eq.${userId}`)
+          .lt("date", now)
+          .order("date", { ascending: false })
+
+        if (pastError) throw pastError
+
+        setUpcomingEvents(upcoming || [])
+        setPastEvents(past || [])
+      } catch (err) {
+        console.error("Error fetching events:", err)
+        setError(err instanceof Error ? err : new Error(String(err)))
+
+        // Check if it's an auth error
+        if (err.message?.includes("refresh_token") || err.status === 400) {
+          handleSpecificAuthError(err)
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    // Initial fetch
     fetchEvents()
-  }, [fetchEvents])
 
-  // Set up real-time subscription
-  useRealtimeSubscription({ table: "events", filter: "user_id", filterValue: userId }, () => fetchEvents())
+    // Set up realtime subscription
+    const channel = supabase
+      .channel("events-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "events",
+        },
+        () => {
+          // Refetch events when changes occur
+          fetchEvents()
+        },
+      )
+      .subscribe((status, err) => {
+        if (status !== "SUBSCRIBED" || err) {
+          console.error("Events subscription error:", err)
+          setError(err instanceof Error ? err : new Error("Failed to subscribe to events"))
+        }
+      })
 
-  return { events, isLoading, error, refetch: fetchEvents }
+    // Cleanup subscription
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, userId])
+
+  return { upcomingEvents, pastEvents, isLoading, error }
 }

@@ -7,6 +7,7 @@ import type { User } from "@supabase/supabase-js"
 import DashboardContent from "@/components/dashboard/dashboard-content"
 import type { Profile, Event, ActivityLog } from "@/lib/supabase/types"
 import { useToast } from "@/components/ui/use-toast"
+import { handleAuthError } from "@/lib/supabase/client"
 
 interface DashboardClientProps {
   user: User
@@ -62,16 +63,45 @@ export default function DashboardClient({
     const handleError = (error: ErrorEvent) => {
       console.error("Client error:", error)
       setError(error.error)
-      toast({
-        variant: "destructive",
-        title: "Something went wrong",
-        description: "An error occurred while rendering the dashboard. Please try refreshing the page.",
-      })
+
+      // Check if it's an auth error
+      if (error.error?.message?.includes("refresh_token") || error.error?.message?.includes("not authenticated")) {
+        // Store auth error flag
+        localStorage.setItem("auth_error", "true")
+
+        // Reload the page to trigger session recovery
+        window.location.reload()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Something went wrong",
+          description: "An error occurred while rendering the dashboard. Please try refreshing the page.",
+        })
+      }
     }
 
     window.addEventListener("error", handleError)
     return () => window.removeEventListener("error", handleError)
   }, [toast])
+
+  // Check auth status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession()
+
+        if (error || !data.session) {
+          // Handle auth error
+          handleAuthError(error)
+          router.push("/auth/signin")
+        }
+      } catch (err) {
+        console.error("Auth check error:", err)
+      }
+    }
+
+    checkAuth()
+  }, [supabase, router])
 
   const handleSignOut = async () => {
     try {

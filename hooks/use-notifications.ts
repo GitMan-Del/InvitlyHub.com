@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { useRealtimeSubscription } from "./use-realtime-subscription"
+import { handleSpecificAuthError } from "@/lib/utils/error-handler"
 
-export type Notification = {
+type Notification = {
   id: string
   user_id: string
   title: string
@@ -12,7 +12,6 @@ export type Notification = {
   type: "info" | "success" | "warning" | "error"
   read: boolean
   created_at: string
-  action_url?: string
 }
 
 export function useNotifications(userId: string) {
@@ -20,38 +19,70 @@ export function useNotifications(userId: string) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const supabase = createClient()
 
-  // Function to fetch notifications
-  const fetchNotifications = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const supabase = createClient()
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        setIsLoading(true)
 
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20)
+        const { data, error: notificationsError } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
 
-      if (error) throw error
+        if (notificationsError) throw notificationsError
 
-      setNotifications(data || [])
-      setUnreadCount(data?.filter((n) => !n.read).length || 0)
-      setError(null)
-    } catch (err) {
-      console.error("Error in useNotifications:", err)
-      setError(err instanceof Error ? err : new Error(String(err)))
-    } finally {
-      setIsLoading(false)
+        setNotifications(data || [])
+        setUnreadCount(data?.filter((n) => !n.read).length || 0)
+      } catch (err) {
+        console.error("Error fetching notifications:", err)
+        setError(err instanceof Error ? err : new Error(String(err)))
+
+        // Check if it's an auth error
+        if (err.message?.includes("refresh_token") || err.status === 400) {
+          handleSpecificAuthError(err)
+        }
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [userId])
 
-  // Function to mark notification as read
-  const markAsRead = useCallback(async (notificationId: string) => {
+    // Initial fetch
+    fetchNotifications()
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel("notifications-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          // Refetch notifications when changes occur
+          fetchNotifications()
+        },
+      )
+      .subscribe((status, err) => {
+        if (status !== "SUBSCRIBED" || err) {
+          console.error("Notifications subscription error:", err)
+          setError(err instanceof Error ? err : new Error("Failed to subscribe to notifications"))
+        }
+      })
+
+    // Cleanup subscription
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, userId])
+
+  const markAsRead = async (notificationId: string) => {
     try {
-      const supabase = createClient()
-
       const { error } = await supabase.from("notifications").update({ read: true }).eq("id", notificationId)
 
       if (error) throw error
@@ -61,14 +92,16 @@ export function useNotifications(userId: string) {
       setUnreadCount((prev) => Math.max(0, prev - 1))
     } catch (err) {
       console.error("Error marking notification as read:", err)
+
+      // Check if it's an auth error
+      if (err.message?.includes("refresh_token") || err.status === 400) {
+        handleSpecificAuthError(err)
+      }
     }
-  }, [])
+  }
 
-  // Function to mark all notifications as read
-  const markAllAsRead = useCallback(async () => {
+  const markAllAsRead = async () => {
     try {
-      const supabase = createClient()
-
       const { error } = await supabase
         .from("notifications")
         .update({ read: true })
@@ -82,49 +115,19 @@ export function useNotifications(userId: string) {
       setUnreadCount(0)
     } catch (err) {
       console.error("Error marking all notifications as read:", err)
-    }
-  }, [userId])
 
-  // Initial data fetch
-  useEffect(() => {
-    fetchNotifications()
-  }, [fetchNotifications])
-
-  // Set up real-time subscription
-  useRealtimeSubscription({ table: "notifications", filter: "user_id", filterValue: userId }, (payload) => {
-    if (payload.eventType === "INSERT") {
-      // Handle new notification
-      const newNotification = payload.new as Notification
-      setNotifications((prev) => [newNotification, ...prev])
-      if (!newNotification.read) {
-        setUnreadCount((prev) => prev + 1)
+      // Check if it's an auth error
+      if (err.message?.includes("refresh_token") || err.status === 400) {
+        handleSpecificAuthError(err)
       }
-    } else if (payload.eventType === "DELETE") {
-      // Handle deleted notification
-      const oldNotification = payload.old as Notification
-      setNotifications((prev) => prev.filter((n) => n.id !== oldNotification.id))
-      if (!oldNotification.read) {
-        setUnreadCount((prev) => Math.max(0, prev - 1))
-      }
-    } else if (payload.eventType === "UPDATE") {
-      // Handle updated notification
-      const updatedNotification = payload.new as Notification
-      setNotifications((prev) => prev.map((n) => (n.id === updatedNotification.id ? updatedNotification : n)))
-
-      // Recalculate unread count
-      setNotifications((current) => {
-        setUnreadCount(current.filter((n) => !n.read).length)
-        return current
-      })
     }
-  })
+  }
 
   return {
     notifications,
     unreadCount,
     isLoading,
     error,
-    refetch: fetchNotifications,
     markAsRead,
     markAllAsRead,
   }

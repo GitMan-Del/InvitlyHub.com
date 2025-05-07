@@ -95,6 +95,13 @@ interface SelectAllCheckboxProps<T> {
 
 export function SelectAllCheckbox<T>({ items, className }: SelectAllCheckboxProps<T>) {
   const { isAllSelected, isSomeSelected, selectAll, deselectAll } = useTableSelection<T>()
+  const checkboxRef = React.useRef<HTMLInputElement>(null)
+
+  React.useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = isSomeSelected(items)
+    }
+  }, [isSomeSelected, items])
 
   const handleChange = (checked: boolean) => {
     if (checked) {
@@ -106,8 +113,8 @@ export function SelectAllCheckbox<T>({ items, className }: SelectAllCheckboxProp
 
   return (
     <Checkbox
+      ref={checkboxRef}
       checked={isAllSelected(items)}
-      indeterminate={isSomeSelected(items)}
       onCheckedChange={handleChange}
       className={cn("rounded-sm", className)}
       aria-label="Select all"

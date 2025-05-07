@@ -1,50 +1,75 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { useRealtimeSubscription } from "./use-realtime-subscription"
+import { handleSpecificAuthError } from "@/lib/utils/error-handler"
 import type { ActivityLog } from "@/lib/supabase/types"
 
-export function useRealtimeActivity(userId: string, limit = 5) {
+export function useRealtimeActivity(userId: string, limit = 10) {
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const supabase = createClient()
 
-  // Function to fetch activity data
-  const fetchActivities = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const supabase = createClient()
-
-      const { data, error } = await supabase
-        .from("activity_logs")
-        .select(`
-          *,
-          events(title)
-        `)
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(limit)
-
-      if (error) throw error
-
-      setActivities(data || [])
-      setError(null)
-    } catch (err) {
-      console.error("Error in useRealtimeActivity:", err)
-      setError(err instanceof Error ? err : new Error(String(err)))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [userId, limit])
-
-  // Initial data fetch
   useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setIsLoading(true)
+
+        const { data, error: activitiesError } = await supabase
+          .from("activity_logs")
+          .select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit)
+
+        if (activitiesError) throw activitiesError
+
+        setActivities(data || [])
+      } catch (err) {
+        console.error("Error fetching activities:", err)
+        setError(err instanceof Error ? err : new Error(String(err)))
+
+        // Check if it's an auth error
+        if (err.message?.includes("refresh_token") || err.status === 400) {
+          handleSpecificAuthError(err)
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    // Initial fetch
     fetchActivities()
-  }, [fetchActivities])
 
-  // Set up real-time subscription
-  useRealtimeSubscription({ table: "activity_logs", filter: "user_id", filterValue: userId }, () => fetchActivities())
+    // Set up realtime subscription
+    const channel = supabase
+      .channel("activity-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "activity_logs",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          // Refetch activities when changes occur
+          fetchActivities()
+        },
+      )
+      .subscribe((status, err) => {
+        if (status !== "SUBSCRIBED" || err) {
+          console.error("Activity subscription error:", err)
+          setError(err instanceof Error ? err : new Error("Failed to subscribe to activities"))
+        }
+      })
 
-  return { activities, isLoading, error, refetch: fetchActivities }
+    // Cleanup subscription
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, userId, limit])
+
+  return { activities, isLoading, error }
 }

@@ -56,6 +56,18 @@ export async function middleware(req: NextRequest) {
     return res
   } catch (error) {
     console.error("Middleware error:", error)
+
+    // If there's an auth error in middleware, redirect to sign in
+    if (error.message?.includes("refresh_token") || error.code === "refresh_token_not_found" || error.status === 400) {
+      // Only redirect to sign in if trying to access protected routes
+      const { pathname } = req.nextUrl
+      if (pathname.startsWith("/dashboard") || pathname.startsWith("/events")) {
+        const redirectUrl = new URL("/auth/signin", req.url)
+        redirectUrl.searchParams.set("redirect", encodeURIComponent(pathname))
+        return NextResponse.redirect(redirectUrl)
+      }
+    }
+
     return res
   }
 }

@@ -1,63 +1,107 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js"
+import { handleSpecificAuthError } from "@/lib/utils/error-handler"
 
-type SubscriptionOptions = {
+type RealtimeSubscriptionOptions = {
   table: string
-  filter?: string
-  filterValue?: string
+  schema?: string
   event?: "INSERT" | "UPDATE" | "DELETE" | "*"
+  filter?: string
 }
 
-export function useRealtimeSubscription(
-  options: SubscriptionOptions,
-  callback: (payload: RealtimePostgresChangesPayload<any>) => void,
-) {
-  const { table, filter, filterValue, event = "*" } = options
-  const channelRef = useRef<RealtimeChannel | null>(null)
+export function useRealtimeSubscription<T = any>({
+  table,
+  schema = "public",
+  event = "*",
+  filter,
+}: RealtimeSubscriptionOptions) {
+  const [data, setData] = useState<T[]>([])
+  const [error, setError] = useState<Error | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const supabase = createClient()
 
   useEffect(() => {
-    const supabase = createClient()
+    // Initial data fetch
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+        let query = supabase.from(table).select("*")
 
-    // Create a unique channel name
-    const channelName = `${table}-${filter || "all"}-${filterValue || "all"}-${event}`
+        if (filter) {
+          // This is a simplified approach - in a real app, you'd want to parse the filter
+          // and apply it properly based on the filter string
+          const [column, value] = filter.split("=")
+          if (column && value) {
+            query = query.eq(column.trim(), value.trim())
+          }
+        }
 
-    // Set up the subscription
+        const { data, error } = await query
+
+        if (error) {
+          throw error
+        }
+
+        setData(data || [])
+      } catch (err) {
+        console.error(`Error fetching data from ${table}:`, err)
+        setError(err instanceof Error ? err : new Error(String(err)))
+
+        // Check if it's an auth error
+        if (err.message?.includes("refresh_token") || err.status === 400) {
+          handleSpecificAuthError(err)
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+
+    // Set up realtime subscription
     const channel = supabase
-      .channel(channelName)
+      .channel(`${table}-changes`)
       .on(
         "postgres_changes",
         {
           event,
-          schema: "public",
+          schema,
           table,
-          ...(filter && filterValue ? { filter: `${filter}=eq.${filterValue}` } : {}),
         },
-        (payload) => {
-          callback(payload)
+        async (payload) => {
+          try {
+            // Refetch the data when changes occur
+            const { data: freshData, error } = await supabase.from(table).select("*")
+
+            if (error) {
+              throw error
+            }
+
+            setData(freshData || [])
+          } catch (err) {
+            console.error(`Error handling realtime update for ${table}:`, err)
+
+            // Check if it's an auth error
+            if (err.message?.includes("refresh_token") || err.status === 400) {
+              handleSpecificAuthError(err)
+            }
+          }
         },
       )
-      .subscribe((status) => {
-        if (status === "CLOSED") {
-          console.log(`Subscription to ${table} closed`)
-        } else if (status === "CHANNEL_ERROR") {
-          console.error(`Error subscribing to ${table}`)
-          // Try to reconnect after a delay
-          setTimeout(() => {
-            channel.subscribe()
-          }, 5000)
+      .subscribe((status, err) => {
+        if (status !== "SUBSCRIBED" || err) {
+          console.error(`Subscription error for ${table}:`, err)
+          setError(err instanceof Error ? err : new Error(`Failed to subscribe to ${table}`))
         }
       })
 
-    channelRef.current = channel
-
-    // Cleanup function
+    // Cleanup subscription
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
-      }
+      supabase.removeChannel(channel)
     }
-  }, [table, filter, filterValue, event, callback])
+  }, [supabase, table, schema, event, filter])
+
+  return { data, error, isLoading }
 }

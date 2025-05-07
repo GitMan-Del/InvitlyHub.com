@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { Checkbox } from "@/components/ui/checkbox"
 import { useTableSelection } from "@/components/ui/table-selection"
 
@@ -12,7 +11,6 @@ interface SelectRowCheckboxProps<T> {
 
 export function SelectRowCheckbox<T>({ item, onClick }: SelectRowCheckboxProps<T>) {
   const { isSelected, toggleSelection } = useTableSelection<T>()
-
   const selected = isSelected(item)
 
   const handleChange = (e: React.MouseEvent) => {

@@ -8,7 +8,7 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between mb-8">
           <div className="mb-8 md:mb-0">
             <Link href="/" className="flex items-center gap-2">
-              <Image src="/Logo.png" alt="Logo" width={24} height={24} className="rounded-full" />
+              <Image src="/Logo.png" alt="Logo" width={24} height={24}/>
             </Link>
           </div>
 
